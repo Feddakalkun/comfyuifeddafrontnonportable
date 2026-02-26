@@ -40,7 +40,7 @@
   },
   "22": {
     "inputs": {
-      "gemma_path": "gemma3\\model-00001-of-00005.safetensors",
+      "gemma_path": "gemma3\\model-00001-of-00002.safetensors",
       "ltxv_path": "ltx-2-19b-distilled.safetensors",
       "max_length": 1024
     },
@@ -160,12 +160,12 @@
   },
   "9999": {
     "inputs": {
-      "download_links": "https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors checkpoints\nhttps://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors vae\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/model-00001-of-00005.safetensors text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/model-00002-of-00005.safetensors text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/model-00003-of-00005.safetensors text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/model-00004-of-00005.safetensors text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/model-00005-of-00005.safetensors text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/tokenizer.model text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/generation_config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/processor_config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/preprocessor_config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-12b-it-qat/resolve/main/chat_template.json text_encoders/gemma3",
+      "download_links": "https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors checkpoints\nhttps://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.safetensors checkpoints\nhttps://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-spatial-upscaler-x2-1.0.safetensors latent_upscale_models\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/model.safetensors.index.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/model-00001-of-00002.safetensors text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/model-00002-of-00002.safetensors text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/tokenizer.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/tokenizer.model text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/tokenizer_config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/generation_config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/processor_config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/preprocessor_config.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/chat_template.json text_encoders/gemma3\nhttps://huggingface.co/unsloth/gemma-3-4b-it-qat/resolve/main/special_tokens_map.json text_encoders/gemma3",
       "auto_download": true,
       "max_concurrent_downloads": 2,
       "max_download_speed_mbps": 0,
       "enable_resume": true,
-      "validate_files": false,
+      "validate_files": true,
       "enable_notifications": true,
       "auto_organize": false,
       "hf_token": ""

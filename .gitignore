@@ -80,5 +80,14 @@ loras.json
 assets/design/
 assets/landingpage/
 
+# Distribution build (local only - distribute as zip/release)
+Feddafront_Distribution/
+
+# Dev-only launcher scripts
+01.runLTX2.bat
+fix_gpu.bat
+HANDOVER_TO_LTX.md
+comfyfront.code-workspace
+
 # Audio workflows (moved to tracked)
 # backend/workflows/audio/

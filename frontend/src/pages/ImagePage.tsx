@@ -1,6 +1,6 @@
 // Image Generation Page
 import { useState, useEffect } from 'react';
-import { Sparkles, ChevronRight, Maximize2, X, Loader2, Eye, Upload } from 'lucide-react';
+import { Sparkles, ChevronRight, Maximize2, X, Loader2, Eye, Upload, Download, Trash2, Video } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { comfyService } from '../services/comfyService';
 import { assistantService } from '../services/assistantService';
@@ -15,7 +15,11 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
     const [prompt, setPrompt] = useState('');
     const [negativePrompt, setNegativePrompt] = useState('blurry, low quality, distorted, bad anatomy, flat lighting');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+    const [generatedImages, setGeneratedImages] = useState<string[]>(() => {
+        // Load from localStorage on mount
+        const saved = localStorage.getItem(`gallery_${modelId}`);
+        return saved ? JSON.parse(saved) : [];
+    });
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     // Advanced settings state
@@ -34,6 +38,10 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
 
     // Gallery Toggle State
     const [showGallery, setShowGallery] = useState(true);
+
+    // Model Download State
+    const [isDownloadingModels, setIsDownloadingModels] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState('');
 
     const addLora = () => {
         if (!currentLora) return;
@@ -79,6 +87,44 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
         loadInitialData();
     }, []);
 
+    // Validate and clean up localStorage images on mount
+    useEffect(() => {
+        const validateImages = async () => {
+            if (generatedImages.length === 0) return;
+
+            const validImages: string[] = [];
+
+            for (const imageUrl of generatedImages) {
+                try {
+                    // Try to fetch the image
+                    const response = await fetch(imageUrl, { method: 'HEAD' });
+                    if (response.ok) {
+                        validImages.push(imageUrl);
+                    } else {
+                        console.log('🗑️ Removed dead image from gallery:', imageUrl);
+                    }
+                } catch (error) {
+                    console.log('🗑️ Removed dead image from gallery:', imageUrl);
+                }
+            }
+
+            // Update if any images were removed
+            if (validImages.length !== generatedImages.length) {
+                setGeneratedImages(validImages);
+                localStorage.setItem(`gallery_${modelId}`, JSON.stringify(validImages));
+            }
+        };
+
+        validateImages();
+    }, []); // Run once on mount
+
+    // Save generated images to localStorage when they change
+    useEffect(() => {
+        if (generatedImages.length > 0) {
+            localStorage.setItem(`gallery_${modelId}`, JSON.stringify(generatedImages));
+        }
+    }, [generatedImages, modelId]);
+
     useEffect(() => {
         const disconnect = comfyService.connectWebSocket({
             onExecuting: (nodeId) => {
@@ -94,6 +140,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                 }
                 const statusMap: Record<string, string> = {
                     '22': 'Downloading Models (this may take a while). Watch your terminal for progress...',
+                    '28': 'Downloading AI Models from HuggingFace (first time only, may take 5-10 minutes)...',
                     '3': 'Generating Image (Sampling)...',
                     '126': 'Loading LoRAs...',
                     '10': 'Saving Image...',
@@ -118,7 +165,9 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                     Object.values(results.outputs).forEach((nodeOutputAny: any) => {
                         if (nodeOutputAny.images) {
                             nodeOutputAny.images.forEach((img: any) => {
-                                images.push(comfyService.getImageUrl(img.filename, img.subfolder, img.type));
+                                // Add cache-buster timestamp to ensure fresh images
+                                const url = comfyService.getImageUrl(img.filename, img.subfolder, img.type);
+                                images.push(`${url}&t=${Date.now()}`);
                             });
                         }
                     });
@@ -168,6 +217,9 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
         }
     };
 
+    // Face Detailer State
+    const [useFaceDetailer, setUseFaceDetailer] = useState(true);
+
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
 
@@ -177,13 +229,15 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
         setProgress(0);
 
         try {
-            // ... (keep fetch workflow logic)
-            const response = await fetch('/workflows/z-image.json');
+            // Load workflow based on selected model
+            const workflowFile = modelId === 'flux' || modelId === 'qwen' ? 'z-image.json' : `${modelId}.json`;
+            const response = await fetch(`/workflows/${workflowFile}`);
             if (!response.ok) throw new Error('Failed to load workflow template');
             const workflow = await response.json();
 
             // 2. Modify Workflow Parameters
-            const activeSeed = seed === -1 ? generateSeed() : seed;
+            // Always generate a fresh random seed for variation (ignore UI seed field for now)
+            const activeSeed = generateSeed();
 
             console.log('🚀 Preparing Generation:', {
                 model: modelId,
@@ -228,20 +282,43 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                 // Clear existing lora inputs just in case
                 // workflow["126"].inputs = { ...workflow["126"].inputs }; // (Optional deep copy if needed)
 
-                // Remove default lora_1 if it exists in JSON to be safe, or just overwrite
-
+                // Remove default lora_1 if it exists in JSON                // Apply selected LoRAs
                 if (selectedLoras.length > 0) {
-                    selectedLoras.forEach((l, index) => {
+                    selectedLoras.slice(0, 5).forEach((l, index) => {
                         workflow["126"].inputs[`lora_${index + 1}`] = {
                             on: true,
                             lora: l.name,
                             strength: l.strength
                         };
                     });
-                } else {
-                    // Ensure at least lora_1 is OFF
-                    workflow["126"].inputs["lora_1"] = { on: false, lora: "", strength: 1.0 };
                 }
+            }
+
+            // --- 6. FACE DETAILER LOGIC (Fix Resolution & Toggle) ---
+            if (workflow["181"]) {
+                // Fix gray bar issue: Update FaceDetailer resolution to match generation size
+                const [w, h] = dimensions.split('x').map(Number);
+                const maxDim = Math.max(w, h);
+                workflow["181"].inputs.guide_size = maxDim;
+                workflow["181"].inputs.max_size = maxDim;
+
+                // Also ensure force_inpaint is mostly false to avoid hallucinations usually
+            }
+
+            // Node 9 (Save Image) usually takes input from Node 181 (FaceDetailer).
+            // Node 181 (FaceDetailer) takes input from Node 8 (VAEDecode).
+            // IF disable FaceDetailer -> Wire Node 9 directly to Node 8.
+            if (!useFaceDetailer && workflow["9"] && workflow["181"]) {
+                const now = new Date();
+                const dateFolder = now.toISOString().split('T')[0]; // YYYY-MM-DD
+                workflow["9"].inputs.filename_prefix = `${modelId}/${dateFolder}/${now.getTime()}_`;
+            }
+
+            // Node 9: SaveImage - Use date-based folder organization
+            if (workflow["9"]) {
+                const now = new Date();
+                const dateFolder = now.toISOString().split('T')[0]; // YYYY-MM-DD
+                workflow["9"].inputs.filename_prefix = `${modelId}/${dateFolder}/${now.getTime()}_`;
             }
 
             console.log('📝 Modified Workflow sent to ComfyUI:', workflow);
@@ -312,6 +389,38 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
         }
     };
 
+    const handleDeleteImage = async (imageUrl: string, index: number) => {
+        try {
+            // Extract filename from URL
+            const urlParams = new URLSearchParams(imageUrl.split('?')[1]);
+            const filename = urlParams.get('filename');
+            const subfolder = urlParams.get('subfolder') || '';
+
+            if (!filename) {
+                console.error('Could not extract filename from URL');
+                return;
+            }
+
+            // Delete from disk via backend
+            const response = await fetch(`http://127.0.0.1:8000/api/files/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, subfolder, type: 'output' })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete image from disk');
+            }
+
+            // Remove from UI and localStorage
+            setGeneratedImages(prev => prev.filter((_, i) => i !== index));
+            console.log('✅ Image deleted from disk:', filename);
+        } catch (error) {
+            console.error('❌ Delete failed:', error);
+            alert('Failed to delete image. Is backend server running?');
+        }
+    };
+
     return (
         <div className={`p-8 grid grid-cols-1 ${showGallery ? 'lg:grid-cols-3' : 'lg:grid-cols-1 w-full'} gap-8 h-full transition-all duration-500`}>
             {/* Left: Controls */}
@@ -370,6 +479,40 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                                 {isEnhancing ? 'Expanding...' : 'Expand Prompt'}
                             </Button>
 
+                            {/* Download Models Button */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-6 px-2 text-xs hover:bg-white/10 ${isDownloadingModels ? 'text-white animate-pulse' : 'text-slate-400 hover:text-white'}`}
+                                onClick={async () => {
+                                    setIsDownloadingModels(true);
+                                    try {
+                                        const models = ['user-v4/joycaption-beta:latest', 'goonsai/qwen2.5-3B-goonsai-nsfw-100k:latest'];
+                                        for (const model of models) {
+                                            setDownloadProgress(`Downloading ${model.split('/')[1]}...`);
+                                            await ollamaService.pullModel(model, (progress) => {
+                                                if (progress.status === 'downloading' && progress.completed && progress.total) {
+                                                    const pct = Math.round((progress.completed / progress.total) * 100);
+                                                    setDownloadProgress(`${model.split('/')[1]}: ${pct}%`);
+                                                }
+                                            });
+                                        }
+                                        setDownloadProgress('Models ready!');
+                                        setTimeout(() => setDownloadProgress(''), 2000);
+                                    } catch (err) {
+                                        console.error('Download failed:', err);
+                                        setDownloadProgress('Download failed');
+                                        setTimeout(() => setDownloadProgress(''), 3000);
+                                    } finally {
+                                        setIsDownloadingModels(false);
+                                    }
+                                }}
+                                disabled={isDownloadingModels}
+                            >
+                                {isDownloadingModels ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Download className="w-3 h-3 mr-1" />}
+                                {isDownloadingModels ? downloadProgress || 'Downloading...' : 'Fetch AI Models'}
+                            </Button>
+
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -393,6 +536,11 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                         className="w-full h-40 bg-[#0a0a0f] border border-white/10 rounded-xl p-4 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-white/20 resize-none transition-all"
                         placeholder={`Describe what you want to create... (Ctrl + Enter to generate)\nOr Drag & Drop an Image here to Capture`}
                     />
+
+                    {/* System Monitor removed - moved to Sidebar */}   <p className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+                        <Eye className="w-3 h-3" />
+                        <span>Tip: Drag an image directly into the box above to auto-generate a detailed prompt</span>
+                    </p>
 
                     {/* Scan Image Modal */}
                     {showScanModal && (
@@ -478,6 +626,22 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
 
                     {showAdvanced && (
                         <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 fade-in duration-200">
+                            {/* Face Detailer Toggle */}
+                            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                <label className="text-xs text-slate-400 uppercase tracking-wider">
+                                    Face Detailer (Auto-Fix)
+                                </label>
+                                <button
+                                    onClick={() => setUseFaceDetailer(!useFaceDetailer)}
+                                    className={`w-12 h-6 rounded-full transition-colors duration-200 flex items-center px-1 ${useFaceDetailer ? 'bg-blue-600' : 'bg-slate-700'
+                                        }`}
+                                >
+                                    <div
+                                        className={`w-4 h-4 bg-white rounded-full transition-transform duration-200 ${useFaceDetailer ? 'translate-x-6' : 'translate-x-0'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
                             {/* ... Partial keeps existing items ... */}
                             <div className="space-y-4 border-b border-white/5 pb-4">
                                 <label className="block text-xs text-slate-400 uppercase tracking-wider">
@@ -698,16 +862,48 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                                 {generatedImages.map((img, idx) => (
                                     <div
                                         key={idx}
-                                        className="group relative aspect-square bg-black/20 rounded-xl overflow-hidden cursor-pointer border border-white/10 hover:border-white/50 transition-all duration-300"
-                                        onClick={() => setSelectedImage(img)}
+                                        className="group relative aspect-square bg-black/20 rounded-xl overflow-hidden border border-white/10 hover:border-white/50 transition-all duration-300"
                                     >
                                         <img
                                             src={img}
                                             alt={`Generated ${idx}`}
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-110"
+                                            onClick={() => setSelectedImage(img)}
                                         />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                            <Maximize2 className="w-6 h-6 text-white drop-shadow-lg" />
+
+                                        {/* Hover Actions */}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedImage(img);
+                                                }}
+                                                className="p-3 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all"
+                                            >
+                                                <Maximize2 className="w-5 h-5 text-white" />
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    localStorage.setItem('active_input_image', img);
+                                                    alert('✅ Image selected for Video generation!\nGo to the Video tab to use it.');
+                                                }}
+                                                className="p-3 bg-blue-500/20 hover:bg-blue-500/30 rounded-full backdrop-blur-sm transition-all"
+                                                title="Use as input for Video (LTX)"
+                                            >
+                                                <Video className="w-5 h-5 text-blue-400" />
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('Delete this image permanently?')) {
+                                                        handleDeleteImage(img, idx);
+                                                    }
+                                                }}
+                                                className="p-3 bg-red-500/20 hover:bg-red-500/30 rounded-full backdrop-blur-sm transition-all"
+                                            >
+                                                <Trash2 className="w-5 h-5 text-red-400" />
+                                            </button>
                                         </div>
                                     </div>
                                 ))}

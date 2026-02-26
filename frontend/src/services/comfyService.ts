@@ -19,7 +19,7 @@ class ComfyUIService {
      */
     async isAlive(): Promise<boolean> {
         try {
-            const response = await fetch(`${COMFY_API.BASE_URL}/system_stats`, {
+            const response = await fetch(`${COMFY_API.BASE_URL}${COMFY_API.ENDPOINTS.SYSTEM_STATS}`, {
                 method: 'GET',
             });
             return response.ok;
@@ -27,6 +27,17 @@ class ComfyUIService {
             console.error('ComfyUI connection failed:', error);
             return false;
         }
+    }
+
+    /**
+     * Get system statistics (CPU, RAM, VRAM)
+     */
+    async getSystemStats(): Promise<any> {
+        const response = await fetch(`${COMFY_API.BASE_URL}${COMFY_API.ENDPOINTS.SYSTEM_STATS}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch system stats');
+        }
+        return await response.json();
     }
 
     /**
@@ -226,6 +237,66 @@ class ComfyUIService {
                 this.ws = null;
             }
         };
+    }
+    /**
+     * Upload an audio file to ComfyUI
+     */
+    async uploadAudio(file: File): Promise<{ name: string; subfolder: string }> {
+        const formData = new FormData();
+        formData.append('image', file); // ComfyUI uses 'image' field even for audio in the upload endpoint usually, or check API. 
+        // Standard ComfyUI /upload/image endpoint accepts audio files too.
+
+        // Let's verify if we need a specific audio endpoint. 
+        // Usually /upload/image with overwrite=true works for all inputs.
+        const response = await fetch(`${COMFY_API.BASE_URL}${COMFY_API.ENDPOINTS.UPLOAD_IMAGE}`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to upload audio');
+        }
+
+        return await response.json();
+    }
+
+    // --- LTX-2 Helpers ---
+
+    /**
+     * Snap dimensions to multiples of 32 (Requirement for LTX-2)
+     */
+    getLTXResolution(width: number, height: number): { width: number, height: number } {
+        return {
+            width: Math.round(width / 32) * 32,
+            height: Math.round(height / 32) * 32
+        };
+    }
+
+    /**
+     * Calculate valid frame count for LTX-2 (Must be 8n + 1)
+     */
+    getLTXFrameCount(seconds: number, fps: number): number {
+        const rawFrames = seconds * fps;
+        // Find nearest 8n + 1
+        const n = Math.round((rawFrames - 1) / 8);
+        const validFrames = (n * 8) + 1;
+        return Math.max(9, validFrames); // Minimum 9 frames
+    }
+
+    async freeMemory(unloadModels: boolean = true, freeCache: boolean = true): Promise<void> {
+        try {
+            await fetch(`${COMFY_API.BASE_URL}/free`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    unload_models: unloadModels,
+                    free_memory: freeCache
+                })
+            });
+            console.log('✅ ComfyUI Memory Freed');
+        } catch (error) {
+            console.error('Failed to free ComfyUI memory:', error);
+        }
     }
 }
 

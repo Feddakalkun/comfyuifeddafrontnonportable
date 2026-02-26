@@ -7,7 +7,9 @@ import {
     Terminal,
     ChevronRight,
     MessageSquare,
+    Images,
 } from 'lucide-react';
+import { SystemMonitor } from '../SystemMonitor';
 import { StatusIndicator } from '../ui/StatusIndicator';
 import { APP_CONFIG, MODELS } from '../../config/api';
 
@@ -43,6 +45,7 @@ export const Sidebar = ({ activeTab, activeSubTab, onTabChange }: SidebarProps) 
             models: MODELS.AUDIO,
         },
         { id: 'logs', label: 'Console Logs', icon: Terminal },
+        { id: 'gallery', label: 'Gallery', icon: Images },
         { id: 'settings', label: 'Settings', icon: Settings },
     ];
 
@@ -115,7 +118,8 @@ export const Sidebar = ({ activeTab, activeSubTab, onTabChange }: SidebarProps) 
             </nav>
 
             {/* Status Footer */}
-            <div className="p-4 border-t border-white/5">
+            <div className="p-4 border-t border-white/5 space-y-4">
+                <SystemMonitor />
                 <StatusIndicator />
             </div>
         </aside>

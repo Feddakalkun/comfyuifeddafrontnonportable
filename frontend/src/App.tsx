@@ -4,6 +4,7 @@ import { ImagePage } from './pages/ImagePage';
 import { VideoPage } from './pages/VideoPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ChatPage } from './pages/ChatPage';
+import { GalleryPage } from './pages/GalleryPage';
 import { LandingPage } from './pages/LandingPage';
 import { MODELS } from './config/api';
 
@@ -94,6 +95,8 @@ function App() {
               </div>
             </div>
           )}
+
+          {activeTab === 'gallery' && <GalleryPage />}
 
           {activeTab === 'settings' && <SettingsPage />}
         </div>

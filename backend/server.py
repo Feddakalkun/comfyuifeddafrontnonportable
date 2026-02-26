@@ -22,7 +22,7 @@ app = FastAPI()
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite dev server
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"],  # Vite dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -146,6 +146,157 @@ async def generate_lipsync_video(
 async def health():
     """Health check endpoint"""
     return {"status": "ok"}
+
+
+# === FILE MANAGEMENT ENDPOINTS ===
+
+@app.get("/api/files/list")
+async def list_output_files():
+    """
+    List all media files in ComfyUI output directory by scanning filesystem
+    Returns files with their metadata
+    """
+    try:
+        comfy_output = Path(__file__).parent.parent / "ComfyUI" / "output"
+        files_list = []
+        
+        # Scan all files recursively
+        for file_path in comfy_output.rglob("*"):
+            if file_path.is_file() and file_path.suffix.lower() in ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm']:
+                # Get relative path from output directory
+                rel_path = file_path.relative_to(comfy_output)
+                
+                # Extract subfolder and model info
+                parts = str(rel_path.parent).split('\\')
+                model = parts[0] if len(parts) > 0 and parts[0] != '.' else 'unknown'
+                date_folder = parts[1] if len(parts) > 1 else 'unknown'
+                subfolder = str(rel_path.parent).replace('\\', '/')
+                
+                # Get file stats
+                stat = file_path.stat()
+                
+                files_list.append({
+                    "filename": file_path.name,
+                    "subfolder": subfolder,
+                    "type": "output",
+                    "model": model,
+                    "dateFolder": date_folder,
+                    "size": stat.st_size,
+                    "modified": stat.st_mtime,
+                    "url": f"http://127.0.0.1:8188/view?filename={file_path.name}&subfolder={subfolder}&type=output"
+                })
+        
+        # Sort by modified time (newest first)
+        files_list.sort(key=lambda x: x["modified"], reverse=True)
+        
+        return {
+            "success": True,
+            "count": len(files_list),
+            "files": files_list
+        }
+        
+    except Exception as e:
+        print(f"❌ List files error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+class DeleteFileRequest(BaseModel):
+    filename: str
+    subfolder: str = ""
+    type: str = "output"  # 'output', 'input', or 'temp'
+
+@app.post("/api/files/delete")
+async def delete_file(request: DeleteFileRequest):
+    """
+    Delete a file from ComfyUI output directory
+    
+    Args:
+        filename: Name of file to delete
+        subfolder: Subfolder within output (e.g., "z-image/2026-02-07")
+        type: 'output', 'input', or 'temp'
+    
+    Returns:
+        Success message
+    """
+    try:
+        # Construct full path
+        comfy_dir = Path(__file__).parent.parent / "ComfyUI"
+        base_dir = comfy_dir / request.type
+        
+        if request.subfolder:
+            file_path = base_dir / request.subfolder / request.filename
+        else:
+            file_path = base_dir / request.filename
+        
+        # Security check - ensure path is within ComfyUI directory
+        if not str(file_path.resolve()).startswith(str(comfy_dir.resolve())):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Delete file
+        if file_path.exists():
+            file_path.unlink()
+            print(f"✅ Deleted: {file_path}")
+            return {"success": True, "message": f"Deleted {request.filename}"}
+        else:
+            raise HTTPException(status_code=404, detail="File not found")
+            
+    except HTTPException:
+        raise  # Re-raise HTTPExceptions as-is
+    except Exception as e:
+        print(f"❌ Delete error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/files/cleanup")
+async def cleanup_orphaned_files():
+    """
+    Clean up orphaned files in output directory that are not in ComfyUI history
+    Returns list of deleted files
+    """
+    try:
+        import requests
+        
+        # Get ComfyUI history
+        history_response = requests.get("http://127.0.0.1:8188/history")
+        history = history_response.json()
+        
+        # Extract all valid filenames from history
+        valid_files = set()
+        for prompt_data in history.values():
+            if prompt_data.get("outputs"):
+                for output in prompt_data["outputs"].values():
+                    if output.get("images"):
+                        for img in output["images"]:
+                            valid_files.add(img["filename"])
+                    if output.get("gifs"):
+                        for gif in output["gifs"]:
+                            valid_files.add(gif["filename"])
+                    if output.get("videos"):
+                        for vid in output["videos"]:
+                            valid_files.add(vid["filename"])
+        
+        # Scan output directory
+        comfy_output = Path(__file__).parent.parent / "ComfyUI" / "output"
+        deleted_files = []
+        
+        for file_path in comfy_output.rglob("*"):
+            if file_path.is_file() and file_path.suffix in ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4']:
+                if file_path.name not in valid_files:
+                    file_path.unlink()
+                    deleted_files.append(str(file_path.relative_to(comfy_output)))
+                    print(f"🗑️ Cleaned up: {file_path.name}")
+        
+        return {
+            "success": True,
+            "deleted_count": len(deleted_files),
+            "deleted_files": deleted_files
+        }
+        
+    except Exception as e:
+        print(f"❌ Cleanup error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 if __name__ == "__main__":
