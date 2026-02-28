@@ -30,6 +30,8 @@ export const BACKEND_API = {
         LORA_DESCRIPTIONS: '/api/lora/descriptions',
         LORA_INSTALL: '/api/lora/install',
         LORA_DOWNLOAD_STATUS: '/api/lora/download-status',
+        LORA_SYNC_PREMIUM: '/api/lora/sync-premium',
+        LORA_INSTALLED: '/api/lora/installed',
         COMFY_REFRESH_MODELS: '/api/comfy/refresh-models',
         AUDIO_TRANSCRIBE: '/api/audio/transcribe',
         AUDIO_TTS: '/api/audio/tts',

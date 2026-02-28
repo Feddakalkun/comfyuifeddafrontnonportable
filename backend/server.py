@@ -712,7 +712,7 @@ async def run_harvester():
 
 # === WILDCARD ENDPOINTS ===
 
-WILDCARDS_DIR = Path(__file__).parent.parent / "ComfyUI" / "wildcards"
+WILDCARDS_DIR = Path(__file__).parent.parent / "config" / "wildcards"
 
 @app.get("/api/wildcards/list")
 async def list_wildcards():

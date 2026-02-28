@@ -1,5 +1,5 @@
 // LoRA Library Configuration
-// Hardcoded catalog for now — Gemini will connect backend download logic later
+// Premium LoRAs hosted on Google Drive, downloaded via backend
 
 export interface LoraEntry {
     id: string;
@@ -11,44 +11,62 @@ export interface LoraEntry {
     filename: string;
     downloadUrl?: string;
     installed: boolean;
+    isPremium?: boolean;
 }
 
+// Google Drive folder containing all premium LoRAs
+export const PREMIUM_DRIVE_FOLDER = 'https://drive.google.com/drive/folders/1jdliAnhXJG2TdqU6tNi5tbpoAOPuJalv';
+
 export const LORA_CATALOG: LoraEntry[] = [
-    // Characters
+    // Premium Characters
     {
         id: 'elev',
         name: 'Elev',
-        description: 'Petite female subject with light brown hair and black headband. Optimized for Z-Image Turbo at strength 1.15.',
+        description: 'Petite female subject with light brown hair and black headband. The Classic. Optimized for Z-Image Turbo at 4:5 portrait.',
         category: 'character',
         fileSize: '228 MB',
-        filename: 'Elev.safetensors',
-        installed: true,
+        filename: 'elev-zimage.safetensors',
+        isPremium: true,
+        installed: false,
     },
     {
-        id: 'madison',
-        name: 'Madison',
-        description: 'Dark-haired woman with striking features. Works well with natural lighting setups.',
+        id: 'froy',
+        name: 'Froy',
+        description: 'Athletic build with sharp, angular features. Clean lines and defined musculature. Best with dramatic lighting.',
         category: 'character',
         fileSize: '195 MB',
-        filename: 'Madison.safetensors',
+        filename: 'Froy_zimage.safetensors',
+        isPremium: true,
         installed: false,
     },
     {
-        id: 'nova',
-        name: 'Nova',
-        description: 'Blonde subject with blue eyes. Strong identity lock at 0.95-1.1 strength.',
+        id: 'sara',
+        name: 'Sara',
+        description: 'Curvy figure with soft features. Excels in warm, soft lighting conditions. Natural skin textures.',
         category: 'character',
         fileSize: '210 MB',
-        filename: 'Nova.safetensors',
+        filename: 'Sara_zimage.safetensors',
+        isPremium: true,
         installed: false,
     },
     {
-        id: 'aria',
-        name: 'Aria',
-        description: 'Asian female subject with long black hair. Best with studio and urban environments.',
+        id: 'lila',
+        name: 'Lila',
+        description: 'The Secret Account. Versatile identity with strong likeness lock. Works across many styles.',
         category: 'character',
         fileSize: '240 MB',
-        filename: 'Aria.safetensors',
+        filename: 'Lila-zimage.safetensors',
+        isPremium: true,
+        installed: false,
+    },
+    {
+        id: 'iris',
+        name: 'Iris',
+        description: 'Massive detail capture. Ultra-high fidelity facial features. Best for close-up portrait work.',
+        category: 'character',
+        fileSize: '250 MB',
+        filename: 'Iris.safetensors',
+        isPremium: true,
         installed: false,
     },
     // Styles
@@ -68,7 +86,7 @@ export const LORA_CATALOG: LoraEntry[] = [
         category: 'style',
         fileSize: '130 MB',
         filename: 'NeonGlow.safetensors',
-        installed: true,
+        installed: false,
     },
     {
         id: 'golden-hour',
@@ -87,7 +105,7 @@ export const LORA_CATALOG: LoraEntry[] = [
         category: 'concept',
         fileSize: '85 MB',
         filename: 'DetailEnhancer.safetensors',
-        installed: true,
+        installed: false,
     },
     {
         id: 'depth-bokeh',

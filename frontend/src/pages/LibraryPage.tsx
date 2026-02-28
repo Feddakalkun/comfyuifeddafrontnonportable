@@ -1,6 +1,6 @@
 // LoRA Library / Store Page
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Download, CheckCircle2, Package, Search, Loader2, Trash2, RotateCw } from 'lucide-react';
+import { Download, CheckCircle2, Package, Search, Loader2, Trash2, RotateCw, CloudDownload, Crown } from 'lucide-react';
 import { useToast } from '../components/ui/Toast';
 import { BACKEND_API } from '../config/api';
 import { LORA_CATALOG, LORA_CATEGORIES, type LoraEntry } from '../config/loras';
@@ -14,12 +14,35 @@ export const LibraryPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [downloading, setDownloading] = useState<Record<string, number>>({}); // id -> progress %
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const filteredLoras = loras
         .filter(l => filterCategory === 'all' || l.category === filterCategory)
         .filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const installedCount = loras.filter(l => l.installed).length;
+    const premiumCount = loras.filter(l => l.isPremium).length;
+
+    // Check which LoRAs are already installed on mount
+    useEffect(() => {
+        const checkInstalled = async () => {
+            try {
+                const res = await fetch(api(BACKEND_API.ENDPOINTS.LORA_INSTALLED));
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.installed) {
+                    setLoras(prev => prev.map(l => ({
+                        ...l,
+                        installed: l.filename in data.installed,
+                        fileSize: l.filename in data.installed ? `${data.installed[l.filename]} MB` : l.fileSize,
+                    })));
+                }
+            } catch {
+                // Backend might not be running yet
+            }
+        };
+        checkInstalled();
+    }, []);
 
     // Poll download progress for active downloads
     const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
@@ -54,7 +77,7 @@ export const LibraryPage = () => {
                         delete next[lora.id];
                         return next;
                     });
-                    toast(`Download failed: ${lora.name}`, 'error');
+                    toast(`Download failed: ${data.message || lora.name}`, 'error');
                 } else {
                     setDownloading(prev => ({ ...prev, [lora.id]: data.progress ?? 0 }));
                 }
@@ -67,7 +90,7 @@ export const LibraryPage = () => {
     }, [toast]);
 
     const handleDownload = async (lora: LoraEntry) => {
-        if (!lora.downloadUrl) {
+        if (!lora.downloadUrl && !lora.isPremium) {
             toast('No download URL configured for this LoRA', 'error');
             return;
         }
@@ -75,15 +98,24 @@ export const LibraryPage = () => {
         setDownloading(prev => ({ ...prev, [lora.id]: 0 }));
 
         try {
-            const res = await fetch(api(BACKEND_API.ENDPOINTS.LORA_INSTALL), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: lora.downloadUrl, filename: lora.filename })
-            });
+            if (lora.isPremium) {
+                // Premium LoRAs use the sync endpoint
+                const res = await fetch(api(BACKEND_API.ENDPOINTS.LORA_SYNC_PREMIUM), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (!res.ok) throw new Error('Sync failed');
+                toast(`Downloading ${lora.name} from Premium vault...`, 'info');
+            } else {
+                const res = await fetch(api(BACKEND_API.ENDPOINTS.LORA_INSTALL), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: lora.downloadUrl, filename: lora.filename })
+                });
+                if (!res.ok) throw new Error('Failed to start download');
+                toast(`Downloading ${lora.name}...`, 'info');
+            }
 
-            if (!res.ok) throw new Error('Failed to start download');
-
-            toast(`Downloading ${lora.name}...`, 'info');
             startProgressPoll(lora);
         } catch (error) {
             toast(`Failed to download ${lora.name}`, 'error');
@@ -92,6 +124,45 @@ export const LibraryPage = () => {
                 delete next[lora.id];
                 return next;
             });
+        }
+    };
+
+    const handleSyncAll = async () => {
+        setIsSyncing(true);
+        try {
+            const res = await fetch(api(BACKEND_API.ENDPOINTS.LORA_SYNC_PREMIUM), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) throw new Error('Sync failed');
+            const data = await res.json();
+
+            if (data.status === 'error') {
+                toast(data.message, 'error');
+                return;
+            }
+
+            const downloadCount = data.downloading?.length ?? 0;
+            const skipCount = data.skipped?.length ?? 0;
+
+            if (downloadCount === 0 && skipCount > 0) {
+                toast(`All ${skipCount} premium LoRAs already installed!`, 'success');
+            } else {
+                toast(`Downloading ${downloadCount} LoRAs (${skipCount} already installed)...`, 'info');
+
+                // Start polling for each downloading file
+                for (const filename of (data.downloading || [])) {
+                    const lora = loras.find(l => l.filename === filename);
+                    if (lora) {
+                        setDownloading(prev => ({ ...prev, [lora.id]: 0 }));
+                        startProgressPoll(lora);
+                    }
+                }
+            }
+        } catch (error) {
+            toast('Failed to sync premium LoRAs. Is the backend running?', 'error');
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -130,18 +201,32 @@ export const LibraryPage = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-white">LoRA Library</h1>
                         <p className="text-slate-400">
-                            {filteredLoras.length} available &bull; {installedCount} installed
+                            {filteredLoras.length} available &bull; {installedCount} installed &bull; {premiumCount} premium
                         </p>
                     </div>
                 </div>
-                <button
-                    onClick={handleRefreshModels}
-                    disabled={isRefreshing}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm text-slate-300 transition-colors disabled:opacity-50"
-                >
-                    <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    Refresh ComfyUI
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleSyncAll}
+                        disabled={isSyncing}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/30 rounded-xl text-sm font-bold text-amber-300 transition-all disabled:opacity-50"
+                    >
+                        {isSyncing ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <CloudDownload className="w-4 h-4" />
+                        )}
+                        Sync All Premium
+                    </button>
+                    <button
+                        onClick={handleRefreshModels}
+                        disabled={isRefreshing}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm text-slate-300 transition-colors disabled:opacity-50"
+                    >
+                        <RotateCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Refresh ComfyUI
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -191,11 +276,15 @@ export const LibraryPage = () => {
                             <div
                                 key={lora.id}
                                 className={`bg-[#121218] border rounded-2xl overflow-hidden transition-all hover:border-white/20 ${
-                                    lora.installed ? 'border-emerald-500/20' : 'border-white/5'
+                                    lora.installed ? 'border-emerald-500/20' : lora.isPremium ? 'border-amber-500/10' : 'border-white/5'
                                 }`}
                             >
                                 {/* Thumbnail placeholder */}
-                                <div className="h-32 bg-gradient-to-br from-white/5 to-white/[0.02] flex items-center justify-center relative">
+                                <div className={`h-32 flex items-center justify-center relative ${
+                                    lora.isPremium
+                                        ? 'bg-gradient-to-br from-amber-500/10 to-orange-500/5'
+                                        : 'bg-gradient-to-br from-white/5 to-white/[0.02]'
+                                }`}>
                                     <span className="text-5xl opacity-20">
                                         {lora.category === 'character' ? '👤' : lora.category === 'style' ? '🎨' : lora.category === 'concept' ? '💡' : '👗'}
                                     </span>
@@ -205,8 +294,22 @@ export const LibraryPage = () => {
                                         {lora.category}
                                     </span>
 
+                                    {/* Premium badge */}
+                                    {lora.isPremium && (
+                                        <span className="absolute top-3 right-3 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                            <Crown className="w-3 h-3" /> Premium
+                                        </span>
+                                    )}
+
                                     {/* Installed badge */}
-                                    {lora.installed && (
+                                    {lora.installed && !lora.isPremium && (
+                                        <span className="absolute top-3 right-3 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                            <CheckCircle2 className="w-3 h-3" /> Installed
+                                        </span>
+                                    )}
+
+                                    {/* Premium + Installed */}
+                                    {lora.installed && lora.isPremium && (
                                         <span className="absolute top-3 right-3 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                                             <CheckCircle2 className="w-3 h-3" /> Installed
                                         </span>
@@ -257,9 +360,13 @@ export const LibraryPage = () => {
                                         ) : (
                                             <button
                                                 onClick={() => handleDownload(lora)}
-                                                className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-bold rounded-xl bg-white text-black hover:bg-slate-200 transition-all shadow-lg"
+                                                className={`w-full py-2.5 flex items-center justify-center gap-2 text-sm font-bold rounded-xl transition-all shadow-lg ${
+                                                    lora.isPremium
+                                                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black hover:from-amber-400 hover:to-orange-400'
+                                                        : 'bg-white text-black hover:bg-slate-200'
+                                                }`}
                                             >
-                                                <Download className="w-4 h-4" /> Download
+                                                <Download className="w-4 h-4" /> {lora.isPremium ? 'Download Premium' : 'Download'}
                                             </button>
                                         )
                                     )}
