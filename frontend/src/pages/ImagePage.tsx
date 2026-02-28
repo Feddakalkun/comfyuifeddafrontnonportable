@@ -391,9 +391,12 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                     workflow["3"].inputs.cfg = cfg;
                 }
 
-                // Node 33: Positive Prompt
+                // Node 33 & 6: Positive Prompt (Bypassing Text Concatenate Node 32)
                 if (workflow["33"]) {
                     workflow["33"].inputs.string = finalPrompt;
+                }
+                if (workflow["6"]) {
+                    workflow["6"].inputs.text = finalPrompt;
                 }
 
                 // Node 34: Negative Prompt
