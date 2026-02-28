@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Image as ImageIcon, Loader2, Type, Mic, Square, Volume2, VolumeX } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Image as ImageIcon, Loader2, Mic, Square, Volume2, VolumeX } from 'lucide-react';
 import { assistantService } from '../services/assistantService';
 import { comfyService } from '../services/comfyService';
 import { ollamaService } from '../services/ollamaService';
+import { OllamaQuickPull } from '../components/OllamaQuickPull';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -60,7 +61,6 @@ export const ChatPage = () => {
     const [selectedLora, setSelectedLora] = useState<string>('');
     const [executionStatus, setExecutionStatus] = useState('');
     const [progress, setProgress] = useState(0);
-    const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
     const [isRecording, setIsRecording] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [recordingMode, setRecordingMode] = useState<'hold' | 'toggle'>('hold');
@@ -81,12 +81,6 @@ export const ChatPage = () => {
     const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    const fontSizeClasses = {
-        small: 'text-sm',
-        medium: 'text-base',
-        large: 'text-lg'
-    };
 
     // Fetch Models & LoRAs on Mount
     useEffect(() => {
@@ -656,22 +650,27 @@ export const ChatPage = () => {
             <div className="absolute top-0 left-0 right-0 p-6 z-10 bg-gradient-to-b from-[#050508] to-transparent">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3 opacity-50 pointer-events-none">
-                            <Bot className="w-5 h-5" />
-                            <span className="text-sm font-medium tracking-wider uppercase">Fedda Agent</span>
+                        <div className="flex items-center gap-3 opacity-70">
+                            <Bot className="w-5 h-5 text-white" />
+                            <span className="text-sm font-bold tracking-wider uppercase text-white">AI-Assistent</span>
                         </div>
 
-                        {/* Brain Selector */}
-                        <div className="flex items-center gap-2 bg-[#121218] border border-white/10 rounded-lg px-2 py-1 z-20 pointer-events-auto shadow-lg">
-                            <span className="text-xs text-slate-500">Brain:</span>
+                        {/* Integrated Quick Model Puller */}
+                        <OllamaQuickPull />
+                    </div>
+
+                    <div className="flex items-center gap-2 pointer-events-auto">
+                        {/* Brain Status & Info */}
+                        <div className="flex items-center gap-2 bg-[#121218] border border-white/10 rounded-lg px-2 py-1 z-20 pointer-events-auto shadow-lg mr-2">
+                            <span className="text-[10px] text-slate-500 uppercase tracking-tighter">Brain:</span>
                             <select
                                 value={selectedModel}
                                 onChange={(e) => setSelectedModel(e.target.value)}
-                                className="bg-transparent text-xs text-white border-none focus:ring-0 cursor-pointer outline-none"
+                                className="bg-transparent text-[10px] text-white border-none focus:ring-0 cursor-pointer outline-none font-bold"
                                 disabled={availableModels.length === 0}
                             >
                                 {availableModels.length === 0 ? (
-                                    <option value="">No models found</option>
+                                    <option value="">No models</option>
                                 ) : (
                                     availableModels.map(m => (
                                         <option key={m} value={m} className="bg-[#121218] text-white py-1">{m}</option>
@@ -679,41 +678,21 @@ export const ChatPage = () => {
                                 )}
                             </select>
                         </div>
-                    </div>
-
-                    {/* Font Size Control */}
-                    <div className="flex items-center gap-2 pointer-events-auto">
 
                         {/* LoRA Selector */}
                         <div className="flex items-center gap-2 bg-[#121218] border border-white/10 rounded-lg px-2 py-1 mr-2">
-                            <span className="text-xs text-slate-500">Style:</span>
+                            <span className="text-xs text-slate-500">LoRA:</span>
                             <select
                                 value={selectedLora}
                                 onChange={(e) => setSelectedLora(e.target.value)}
                                 className="bg-transparent text-xs text-white border-none focus:ring-0 cursor-pointer outline-none max-w-[120px]"
                                 disabled={availableLoras.length === 0}
                             >
-                                <option value="">{availableLoras.length === 0 ? 'None (No LoRAs found)' : 'None'}</option>
+                                <option value="">{availableLoras.length === 0 ? 'None' : 'None'}</option>
                                 {availableLoras.map(l => (
                                     <option key={l} value={l} className="bg-[#121218]">{l.replace('.safetensors', '').replace('.pt', '')}</option>
                                 ))}
                             </select>
-                        </div>
-
-                        <Type className="w-4 h-4 text-slate-500" />
-                        <div className="flex gap-1 bg-[#121218] border border-white/10 rounded-lg p-1">
-                            {(['small', 'medium', 'large'] as const).map((size) => (
-                                <button
-                                    key={size}
-                                    onClick={() => setFontSize(size)}
-                                    className={`px-2 py-1 rounded text-xs font-medium transition-all ${fontSize === size
-                                        ? 'bg-white text-black'
-                                        : 'text-slate-400 hover:text-white'
-                                        }`}
-                                >
-                                    {size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
-                                </button>
-                            ))}
                         </div>
 
                         {/* TTS Controls */}
@@ -778,7 +757,7 @@ export const ChatPage = () => {
                                     ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'
                                     : 'bg-[#121218] border border-white/5 text-slate-200 shadow-xl'
                                     }`}>
-                                    <div className={`prose prose-invert prose-sm max-w-none ${fontSizeClasses[fontSize]}`}>
+                                    <div className="prose prose-invert prose-sm max-w-none">
                                         <ReactMarkdown>
                                             {msg.content}
                                         </ReactMarkdown>

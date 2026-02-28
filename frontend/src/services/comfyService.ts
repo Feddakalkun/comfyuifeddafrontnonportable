@@ -1,5 +1,5 @@
 // ComfyUI API Service
-import { COMFY_API } from '../config/api';
+import { COMFY_API, BACKEND_API } from '../config/api';
 import type { ComfyPrompt, ComfyQueueItem, ComfyHistoryItem } from '../types/comfy';
 
 class ComfyUIService {
@@ -40,6 +40,17 @@ class ComfyUIService {
         return await response.json();
     }
 
+    async getHardwareStats(): Promise<any> {
+        try {
+            const response = await fetch(`${BACKEND_API.BASE_URL}${BACKEND_API.ENDPOINTS.HARDWARE_STATS}`);
+            if (!response.ok) return null;
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch hardware stats:', error);
+            return null;
+        }
+    }
+
     /**
      * Queue a prompt for generation
      */
@@ -58,7 +69,22 @@ class ComfyUIService {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to queue prompt: ${response.statusText}`);
+            // Try to extract detailed error from ComfyUI response
+            let errorMsg = `Failed to queue prompt: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                if (errorData?.error?.message) {
+                    errorMsg = errorData.error.message;
+                }
+                if (errorData?.node_errors) {
+                    const nodeErrors = Object.values(errorData.node_errors) as any[];
+                    if (nodeErrors.length > 0) {
+                        const first = nodeErrors[0];
+                        errorMsg = first?.errors?.[0]?.message || errorMsg;
+                    }
+                }
+            } catch { }
+            throw new Error(errorMsg);
         }
 
         return await response.json();

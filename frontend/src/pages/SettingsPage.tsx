@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, Trash2, BrainCircuit, Search, RotateCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { useToast } from '../components/ui/Toast';
 import { ollamaService } from '../services/ollamaService';
 import type { OllamaModel, OllamaProgress } from '../services/ollamaService';
 
@@ -21,6 +22,7 @@ const VISION_MODELS = [
 ];
 
 export const SettingsPage = () => {
+    const { toast } = useToast();
     const [installedModels, setInstalledModels] = useState<OllamaModel[]>([]);
     const [isLoadingModels, setIsLoadingModels] = useState(false);
 
@@ -48,7 +50,7 @@ export const SettingsPage = () => {
     const saveRunpodSettings = () => {
         localStorage.setItem('runpodUrl', runpodUrl);
         localStorage.setItem('runpodToken', runpodToken);
-        alert('RunPod settings saved!');
+        toast('RunPod settings saved!', 'success');
     };
 
     // Update selected model when category changes
@@ -100,7 +102,7 @@ export const SettingsPage = () => {
             await ollamaService.deleteModel(name);
             refreshModels();
         } catch (error) {
-            alert('Failed to delete model');
+            toast('Failed to delete model', 'error');
         }
     };
 

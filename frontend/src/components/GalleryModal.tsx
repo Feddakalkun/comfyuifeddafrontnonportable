@@ -34,7 +34,8 @@ export const GalleryModal = ({ isOpen, onClose, onSelect }: GalleryModalProps) =
     const loadGallery = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/files/list');
+            const { BACKEND_API } = await import('../config/api');
+            const response = await fetch(`${BACKEND_API.BASE_URL}${BACKEND_API.ENDPOINTS.FILES_LIST}`);
             if (!response.ok) throw new Error('Failed to load gallery');
             const data = await response.json();
 

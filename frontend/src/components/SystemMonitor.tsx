@@ -4,11 +4,16 @@ import { Cpu, Trash2, Activity, HardDrive, Zap } from 'lucide-react';
 
 export const SystemMonitor = () => {
     const [stats, setStats] = useState<any>(null);
+    const [gpuStats, setGpuStats] = useState<any>(null);
     const [loading, setLoading] = useState(false);
 
     const updateStats = async () => {
-        const data = await comfyService.getSystemStats();
-        if (data) setStats(data);
+        const [sysData, hwData] = await Promise.all([
+            comfyService.getSystemStats(),
+            comfyService.getHardwareStats()
+        ]);
+        if (sysData) setStats(sysData);
+        if (hwData) setGpuStats(hwData);
     };
 
     useEffect(() => {
@@ -51,8 +56,8 @@ export const SystemMonitor = () => {
         <div className="bg-[#121218] border border-white/5 rounded-2xl p-4 shadow-lg space-y-4">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-slate-300">
-                    <Activity className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider">System Monitor</span>
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider">GPU Engine</span>
                 </div>
 
                 {/* Free VRAM Button */}
@@ -73,8 +78,11 @@ export const SystemMonitor = () => {
                     <span className="text-slate-400 flex items-center gap-1">
                         <Zap className="w-3 h-3" />
                         {device.name.replace('NVIDIA GeForce ', '')}
+                        {gpuStats?.gpu?.temperature && (
+                            <span className="ml-2 text-amber-500 font-bold">{gpuStats.gpu.temperature}°C</span>
+                        )}
                     </span>
-                    <span className="text-slate-500">{vramPercent}% Load</span>
+                    <span className="text-slate-500">{gpuStats?.gpu?.utilization ?? vramPercent}% Load</span>
                 </div>
 
                 {/* VRAM Bar */}

@@ -5,6 +5,8 @@ import { Button } from '../components/ui/Button';
 import { comfyService } from '../services/comfyService';
 import { assistantService } from '../services/assistantService';
 import { ollamaService } from '../services/ollamaService';
+import { useComfyExecution } from '../contexts/ComfyExecutionContext';
+import { useToast } from '../components/ui/Toast';
 
 interface ImagePageProps {
     modelId: string;
@@ -12,6 +14,8 @@ interface ImagePageProps {
 }
 
 export const ImagePage = ({ modelId }: ImagePageProps) => {
+    const { state: execState, progress: execProgress, currentNodeName, lastCompletedPromptId, queueWorkflow } = useComfyExecution();
+    const { toast } = useToast();
     const [prompt, setPrompt] = useState('');
     const [negativePrompt, setNegativePrompt] = useState('blurry, low quality, distorted, bad anatomy, flat lighting');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -79,7 +83,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
             const models = await ollamaService.getModels();
             const model = models.find(m => m.name.includes('qwen') || m.name.includes('goonsai'))?.name || models[0]?.name;
             if (!model) {
-                alert('No Ollama model available for prompt enhancement');
+                toast('No Ollama model available for prompt enhancement', 'error');
                 return;
             }
 
@@ -126,8 +130,6 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
     const [availableLoras, setAvailableLoras] = useState<string[]>([]);
     const [availableStyles, setAvailableStyles] = useState<string[]>(['No Style', 'FEDDA Ultra Real', 'FEDDA Portrait Master', 'Photographic', 'Cinematic', 'Anime']);
     const [showLoraList, setShowLoraList] = useState(false);
-    const [executionStatus, setExecutionStatus] = useState<string>('');
-    const [progress, setProgress] = useState(0);
 
     const filteredLoras = availableLoras.filter(l =>
         l.toLowerCase().includes(currentLora.toLowerCase())
@@ -202,65 +204,21 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
         }
     }, [generatedImages, modelId]);
 
+    // Fetch results when execution completes
     useEffect(() => {
-        const disconnect = comfyService.connectWebSocket({
-            onExecuting: (nodeId) => {
-                if (!nodeId) {
-                    setExecutionStatus('Finalizing...');
-                    setTimeout(async () => {
-                        const currentPromptId = localStorage.getItem('last_prompt_id');
-                        if (currentPromptId) {
-                            await fetchResults(currentPromptId);
-                        }
-                    }, 800);
-                    return;
-                }
-                const statusMap: Record<string, string> = {
-                    // Single workflow nodes
-                    '22': 'Downloading Models (this may take a while)...',
-                    '28': 'Downloading AI Models from HuggingFace (first time only)...',
-                    '3': 'Generating Image (Sampling)...',
-                    '126': 'Loading LoRAs...',
-                    '10': 'Saving Image...',
-                    '15': 'Applying Flux Guidance...',
-                    // Dual workflow nodes
-                    '46': 'Generating Image (Sampling)...',
-                    '125': 'Loading Person A LoRA...',
-                    '211': 'Loading Person B LoRA...',
-                    '142': 'Loading Z-Image Model...',
-                    '143': 'Loading CLIP...',
-                    '49': 'Loading Florence2 Model...',
-                    '53': 'Detecting Person B...',
-                    '82': 'Loading SAM2 Model...',
-                    '83': 'Segmenting Person B...',
-                    '102': 'Fixing Person B Face...',
-                    '200': 'Detecting Person A...',
-                    '202': 'Segmenting Person A...',
-                    '209': 'Fixing Person A Face...',
-                    '145': 'Saving Final Image...',
-                    '124': 'Loading Person B LoRA (Detailer)...',
-                    '207': 'Loading Person A LoRA (Detailer)...',
-                };
-                setExecutionStatus(statusMap[nodeId] || `Processing (Node ${nodeId})...`);
-            },
-            onProgress: (_node, value, max) => {
-                setProgress(Math.round((value / max) * 100));
-            },
-            onCompleted: (promptId) => {
-                localStorage.setItem('last_prompt_id', promptId);
-            }
-        });
+        if (!lastCompletedPromptId) return;
 
-        const fetchResults = async (promptId: string) => {
+        const fetchResults = async () => {
             try {
-                const history = await comfyService.getHistory(promptId);
-                const results = history[promptId];
+                // Small delay to let ComfyUI finalize
+                await new Promise(r => setTimeout(r, 800));
+                const history = await comfyService.getHistory(lastCompletedPromptId);
+                const results = history[lastCompletedPromptId];
                 if (results?.outputs) {
                     const images: string[] = [];
                     Object.values(results.outputs).forEach((nodeOutputAny: any) => {
                         if (nodeOutputAny.images) {
                             nodeOutputAny.images.forEach((img: any) => {
-                                // Add cache-buster timestamp to ensure fresh images
                                 const url = comfyService.getImageUrl(img.filename, img.subfolder, img.type);
                                 images.push(`${url}&t=${Date.now()}`);
                             });
@@ -268,18 +226,17 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                     });
                     if (images.length > 0) {
                         setGeneratedImages(prev => [...images, ...prev]);
-                        setExecutionStatus('Generation Complete!');
-                        setProgress(100);
                     }
                 }
             } catch (err) {
                 console.error("Results fetch error:", err);
             } finally {
-                setTimeout(() => { setExecutionStatus(''); setProgress(0); }, 3000);
+                setIsGenerating(false);
             }
         };
-        return () => disconnect();
-    }, []);
+
+        fetchResults();
+    }, [lastCompletedPromptId]);
 
     const generateSeed = () => Math.floor(Math.random() * 1000000000000000);
 
@@ -295,7 +252,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
             const textModel = models.find(m => !m.name.includes('vision') && !m.name.includes('llava')) || models[0];
 
             if (!textModel) {
-                alert('No Ollama text models found! Please download one in Settings > Text Generation.');
+                toast('No Ollama text models found! Download one in Settings.', 'error');
                 return;
             }
 
@@ -304,7 +261,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
             setPrompt(enhanced);
         } catch (error) {
             console.error('Enhance failed:', error);
-            alert('Failed to enhance prompt. Ensure Ollama is running and a model is installed.');
+            toast('Failed to enhance prompt. Ensure Ollama is running.', 'error');
         } finally {
             setIsEnhancing(false);
         }
@@ -317,9 +274,6 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
         if (!prompt.trim()) return;
 
         setIsGenerating(true);
-        // Don't clear images if we want to keep them, but maybe clear selection
-        setExecutionStatus('Starting...');
-        setProgress(0);
 
         try {
             // Load workflow based on selected model
@@ -471,13 +425,12 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
             }
 
             console.log('📝 Modified Workflow sent to ComfyUI:', workflow);
-            const result = await comfyService.queuePrompt(workflow);
-            console.log('✅ Queued:', result);
+            const promptId = await queueWorkflow(workflow);
+            console.log('✅ Queued:', promptId);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('❌ Generation failed:', error);
-            alert('Generation failed! Check console for details.');
-        } finally {
+            toast(error?.message || 'Generation failed! Check console for details.', 'error');
             setIsGenerating(false);
         }
     };
@@ -500,7 +453,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
             );
 
             if (!visionModel) {
-                alert('No Ollama VISION model found! Please download one in Settings > Vision / Caption.');
+                toast('No Ollama VISION model found! Download one in Settings.', 'error');
                 return;
             }
 
@@ -516,7 +469,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                     setPrompt(description);
                 } catch (err) {
                     console.error(err);
-                    alert('Failed to get description from Ollama.');
+                    toast('Failed to get description from Ollama.', 'error');
                 } finally {
                     setIsDescribing(false);
                 }
@@ -551,7 +504,8 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
             }
 
             // Delete from disk via backend
-            const response = await fetch(`http://127.0.0.1:8000/api/files/delete`, {
+            const { BACKEND_API } = await import('../config/api');
+            const response = await fetch(`${BACKEND_API.BASE_URL}${BACKEND_API.ENDPOINTS.FILES_DELETE}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename, subfolder, type: 'output' })
@@ -566,7 +520,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
             console.log('✅ Image deleted from disk:', filename);
         } catch (error) {
             console.error('❌ Delete failed:', error);
-            alert('Failed to delete image. Is backend server running?');
+            toast('Failed to delete image. Is backend server running?', 'error');
         }
     };
 
@@ -1011,7 +965,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                 <div className="lg:col-span-2 bg-[#121218] border border-white/5 rounded-2xl p-1 flex flex-col items-center justify-center relative overflow-hidden group min-h-[600px] animate-in slide-in-from-right-4 duration-500">
                     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
 
-                    {isGenerating || executionStatus ? (
+                    {isGenerating || execState === 'executing' ? (
                         <div className="z-10 w-full max-w-md p-8 text-center space-y-6">
                             <div className="relative w-24 h-24 mx-auto">
                                 <div className="absolute inset-0 border-4 border-white/20 rounded-full animate-pulse"></div>
@@ -1020,15 +974,15 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                             </div>
 
                             <div className="space-y-2">
-                                <p className="text-white font-medium text-lg tracking-tight">{executionStatus || 'Initializing...'}</p>
-                                {progress > 0 && <p className="text-white font-bold text-2xl">{progress}%</p>}
+                                <p className="text-white font-medium text-lg tracking-tight">{currentNodeName || 'Initializing...'}</p>
+                                {execProgress > 0 && <p className="text-white font-bold text-2xl">{execProgress}%</p>}
                             </div>
 
-                            {progress > 0 && (
+                            {execProgress > 0 && (
                                 <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-white transition-all duration-300 shadow-[0_0_10px_rgba(255,255,255,0.3)]"
-                                        style={{ width: `${progress}%` }}
+                                        style={{ width: `${execProgress}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -1073,7 +1027,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     localStorage.setItem('active_input_image', img);
-                                                    alert('✅ Image selected for Video generation!\nGo to the Video tab to use it.');
+                                                    toast('Image selected for Video generation! Go to Video tab.', 'success');
                                                 }}
                                                 className="p-3 bg-blue-500/20 hover:bg-blue-500/30 rounded-full backdrop-blur-sm transition-all"
                                                 title="Use as input for Video (LTX)"

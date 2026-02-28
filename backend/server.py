@@ -14,12 +14,15 @@ from fastapi.responses import FileResponse
 import uvicorn
 from audio_service import transcribe_audio, save_temp_audio, cleanup_temp_audio, text_to_speech
 from lipsync_service import generate_lipsync
+from lora_service import start_lora_download, get_download_status, refresh_comfy_models
 from pathlib import Path
 from pydantic import BaseModel
 import json
 import urllib.request
 import urllib.error
 import requests
+import subprocess
+import shutil
 
 app = FastAPI()
 
@@ -146,10 +149,88 @@ async def generate_lipsync_video(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/hardware/stats")
+async def get_hardware_stats():
+    """
+    Get hardware statistics like GPU temperature using nvidia-smi.
+    """
+    try:
+        # Run nvidia-smi to get temp and memory
+        # Format: temperature.gpu, utilization.gpu, name
+        cmd = ["nvidia-smi", "--query-gpu=temperature.gpu,utilization.gpu,gpu_name,memory.used,memory.total", "--format=csv,noheader,nounits"]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        
+        lines = result.stdout.strip().split("\n")
+        if not lines:
+            return {"error": "No GPU data found"}
+            
+        # Parse the first GPU
+        temp, util, name, mem_used, mem_total = [x.strip() for x in lines[0].split(",")]
+        
+        return {
+            "gpu": {
+                "name": name,
+                "temperature": int(temp),
+                "utilization": int(util),
+                "memory": {
+                    "used": int(mem_used),
+                    "total": int(mem_total),
+                    "percentage": round((int(mem_used) / int(mem_total)) * 100, 1)
+                }
+            },
+            "status": "ok"
+        }
+    except Exception as e:
+        # Fallback if no NVIDIA GPU or command fails
+        print(f"⚠️ GPU Stats Error: {e}")
+        return {"status": "error", "message": "NVIDIA GPU not detected or driver error"}
+
 @app.get("/health")
 async def health():
     """Health check endpoint"""
     return {"status": "ok"}
+
+
+# === PREMIUM LORA DOWNLOADS ===
+
+class LoraInstallRequest(BaseModel):
+    url: str
+    filename: str
+
+@app.post("/api/lora/install")
+async def install_lora(req: LoraInstallRequest):
+    """
+    Start downloading a LoRA in the background.
+    """
+    try:
+        # Prevent path traversal attacks by validating filename
+        if ".." in req.filename or "/" in req.filename or "\\" in req.filename:
+             raise HTTPException(status_code=400, detail="Invalid filename")
+        
+        result = start_lora_download(req.url, req.filename)
+        return result
+    except Exception as e:
+        print(f"❌ LoRA Install trigger error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/lora/download-status/{filename}")
+async def get_lora_status(filename: str):
+    """
+    Check the current status/progress of a specific download.
+    """
+    return get_download_status(filename)
+
+
+@app.get("/api/comfy/refresh-models")
+async def manual_refresh_models():
+    """
+    Manually trigger a refresh of ComfyUI models.
+    """
+    success = refresh_comfy_models()
+    if success:
+        return {"success": True, "message": "Models refreshed"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to refresh models on ComfyUI side")
 
 
 # === RUNPOD CLOUD INTEGRATION ===
@@ -242,13 +323,139 @@ async def trigger_runpod_animation(req: RunPodAnimateRequest):
         
         job_data = job_res.json()
         return {"success": True, "prompt_id": job_data.get("prompt_id", "UNKNOWN")}
-        
+
     except requests.exceptions.HTTPError as he:
         print(f"RunPod HTTP Error: {he.response.text}")
         raise HTTPException(status_code=he.response.status_code, detail=f"RunPod Endpoint Error: {he.response.text}")
     except Exception as e:
         print(f"❌ RunPod Integration Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class RunPodStatusRequest(BaseModel):
+    prompt_id: str
+    runpod_url: str
+    runpod_token: str = ""
+
+@app.post("/api/runpod/status")
+async def check_runpod_status(req: RunPodStatusRequest):
+    """
+    Proxy status check to RunPod ComfyUI instance.
+    Checks /history/{prompt_id} for job completion and output files.
+    Also checks /queue for position info.
+    """
+    try:
+        base_url = req.runpod_url.replace("/prompt", "")
+        headers = {}
+        if req.runpod_token:
+            headers["Authorization"] = f"Bearer {req.runpod_token}"
+
+        # Check history for completed job
+        history_url = f"{base_url}/history/{req.prompt_id}"
+        history_res = requests.get(history_url, headers=headers, timeout=10)
+
+        if history_res.status_code == 200:
+            history_data = history_res.json()
+
+            if req.prompt_id in history_data:
+                job = history_data[req.prompt_id]
+                status_info = job.get("status", {})
+                completed = status_info.get("completed", False)
+                status_msg = status_info.get("status_str", "unknown")
+
+                # Extract output files if completed
+                output_files = []
+                if job.get("outputs"):
+                    for node_output in job["outputs"].values():
+                        for key in ["images", "gifs", "videos"]:
+                            if node_output.get(key):
+                                for f in node_output[key]:
+                                    output_files.append({
+                                        "filename": f.get("filename", ""),
+                                        "subfolder": f.get("subfolder", ""),
+                                        "type": f.get("type", "output"),
+                                        "preview_url": f"{base_url}/view?filename={f.get('filename', '')}&subfolder={f.get('subfolder', '')}&type={f.get('type', 'output')}"
+                                    })
+
+                return {
+                    "status": "completed" if completed else status_msg,
+                    "completed": completed,
+                    "outputs": output_files,
+                    "prompt_id": req.prompt_id
+                }
+
+        # Not in history yet - check queue position
+        queue_url = f"{base_url}/queue"
+        try:
+            queue_res = requests.get(queue_url, headers=headers, timeout=5)
+            if queue_res.status_code == 200:
+                queue_data = queue_res.json()
+                running = queue_data.get("queue_running", [])
+                pending = queue_data.get("queue_pending", [])
+
+                # Check if currently running
+                for item in running:
+                    if len(item) > 1 and item[1] == req.prompt_id:
+                        return {"status": "processing", "completed": False, "outputs": [], "prompt_id": req.prompt_id}
+
+                # Check queue position
+                for idx, item in enumerate(pending):
+                    if len(item) > 1 and item[1] == req.prompt_id:
+                        return {"status": f"queued (position {idx + 1})", "completed": False, "outputs": [], "prompt_id": req.prompt_id}
+        except Exception:
+            pass  # Queue check is best-effort
+
+        return {"status": "pending", "completed": False, "outputs": [], "prompt_id": req.prompt_id}
+
+    except requests.exceptions.Timeout:
+        return {"status": "pod_loading", "completed": False, "outputs": [], "prompt_id": req.prompt_id}
+    except Exception as e:
+        print(f"❌ RunPod Status Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class RunPodDownloadRequest(BaseModel):
+    runpod_url: str
+    runpod_token: str = ""
+    filename: str
+    subfolder: str = ""
+    file_type: str = "output"
+
+@app.post("/api/runpod/download")
+async def download_runpod_output(req: RunPodDownloadRequest):
+    """
+    Download a completed file from RunPod and save it locally to ComfyUI output.
+    """
+    try:
+        base_url = req.runpod_url.replace("/prompt", "")
+        headers = {}
+        if req.runpod_token:
+            headers["Authorization"] = f"Bearer {req.runpod_token}"
+
+        view_url = f"{base_url}/view?filename={req.filename}&subfolder={req.subfolder}&type={req.file_type}"
+        download_res = requests.get(view_url, headers=headers, timeout=120, stream=True)
+        download_res.raise_for_status()
+
+        # Save to local ComfyUI output
+        comfy_output = Path(__file__).parent.parent / "ComfyUI" / "output" / "runpod"
+        comfy_output.mkdir(parents=True, exist_ok=True)
+
+        local_path = comfy_output / req.filename
+        with open(local_path, 'wb') as f:
+            for chunk in download_res.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        print(f"✅ Downloaded from RunPod: {req.filename} -> {local_path}")
+        return {
+            "success": True,
+            "local_path": str(local_path),
+            "url": f"http://127.0.0.1:8188/view?filename={req.filename}&subfolder=runpod&type=output"
+        }
+
+    except Exception as e:
+        print(f"❌ RunPod Download Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # === FILE MANAGEMENT ENDPOINTS ===
 

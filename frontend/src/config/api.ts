@@ -16,6 +16,28 @@ export const COMFY_API = {
     WS_URL: 'ws://127.0.0.1:8188/ws',
 };
 
+// Backend API Configuration (FastAPI server)
+export const BACKEND_API = {
+    BASE_URL: 'http://127.0.0.1:8000',
+
+    ENDPOINTS: {
+        FILES_LIST: '/api/files/list',
+        FILES_DELETE: '/api/files/delete',
+        FILES_CLEANUP: '/api/files/cleanup',
+        RUNPOD_ANIMATE: '/api/runpod/animate',
+        RUNPOD_STATUS: '/api/runpod/status',
+        RUNPOD_DOWNLOAD: '/api/runpod/download',
+        LORA_DESCRIPTIONS: '/api/lora/descriptions',
+        LORA_INSTALL: '/api/lora/install',
+        LORA_DOWNLOAD_STATUS: '/api/lora/download-status',
+        COMFY_REFRESH_MODELS: '/api/comfy/refresh-models',
+        AUDIO_TRANSCRIBE: '/api/audio/transcribe',
+        AUDIO_TTS: '/api/audio/tts',
+        VIDEO_LIPSYNC: '/api/video/lipsync',
+        HARDWARE_STATS: '/api/hardware/stats',
+    },
+};
+
 export const APP_CONFIG = {
     NAME: 'FEDDA',
     VERSION: '0.1.0',

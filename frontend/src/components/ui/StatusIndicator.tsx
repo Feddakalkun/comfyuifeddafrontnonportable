@@ -34,20 +34,20 @@ export const StatusIndicator = () => {
             {/* Ollama Status */}
             <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${ollama.isConnected
-                    ? 'bg-blue-500/10 border-blue-500/30'
-                    : 'bg-slate-800/30 border-slate-700/30'
+                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                    : 'bg-red-500/10 border-red-500/30'
                     }`}
             >
                 {ollama.isLoading ? (
                     <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
                 ) : ollama.isConnected ? (
-                    <BrainCircuit className="w-4 h-4 text-blue-400" />
+                    <BrainCircuit className="w-4 h-4 text-emerald-400" />
                 ) : (
-                    <BrainCircuit className="w-4 h-4 text-slate-600" />
+                    <BrainCircuit className="w-4 h-4 text-red-400" />
                 )}
 
                 <div className="text-xs">
-                    <div className={`${ollama.isConnected ? 'text-blue-400' : 'text-slate-500'} font-medium`}>
+                    <div className={`${ollama.isConnected ? 'text-emerald-400' : 'text-red-400'} font-medium`}>
                         {ollama.isConnected ? 'Ollama Online' : 'Ollama Offline'}
                     </div>
                 </div>
