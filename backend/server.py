@@ -841,8 +841,9 @@ async def get_models_status(group: str = "z-image"):
         is_corrupt = False
         if exists:
             fsize_gb = full_path.stat().st_size / (1024**3)
-            # If the file is less than 50% of its expected size, it's likely corrupt/incomplete
-            if fsize_gb < (m['size_gb'] * 0.8):
+            # Custom thresholds: VAE is smaller, others are huge.
+            threshold = 0.5 if m['id'] == 'vae' else 0.8
+            if fsize_gb < (m['size_gb'] * threshold):
                 is_corrupt = True
         
         current_prog = download_progress.get(m['id'], {"status": "idle", "downloaded": 0, "total": 0})
@@ -851,7 +852,7 @@ async def get_models_status(group: str = "z-image"):
             **m,
             "exists": exists and not is_corrupt,
             "is_corrupt": is_corrupt,
-            "actual_size_gb": round(full_path.stat().st_size / (1024**3), 2) if exists else 0,
+            "actual_size_gb": round(full_path.stat().st_size / (1024**3), 3) if exists else 0,
             "progress": current_prog
         })
     
