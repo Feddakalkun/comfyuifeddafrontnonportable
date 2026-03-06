@@ -26,11 +26,13 @@ if not exist "%~dp0.git" (
     echo No git repo found - initializing from GitHub...
     git init
     git remote add origin https://github.com/Feddakalkun/comfyuifeddafront.git
-    git fetch origin main
-    git reset --hard origin/main
-) else (
-    git pull origin main
 )
+
+:: Always fetch and reset to match GitHub exactly
+:: This ensures local changes never block the update
+git fetch origin main
+git reset --hard origin/main
+git clean -fd
 
 echo.
 echo Running repair and installation script...
