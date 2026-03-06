@@ -9,5 +9,99 @@
     "url": "local",
     "folder": "none",
     "local": true
+  },
+
+  {
+    "name": "rgthree-comfy",
+    "url": "https://github.com/rgthree/rgthree-comfy.git",
+    "folder": "rgthree-comfy",
+    "note": "Power Lora Loader, Image Comparer — used in all z-image + wan22 workflows"
+  },
+  {
+    "name": "Bjornulf_custom_nodes",
+    "url": "https://github.com/Bjornulf01/Bjornulf_custom_nodes.git",
+    "folder": "Bjornulf_custom_nodes",
+    "note": "HuggingFace Model Downloader Pro — used in 6/7 workflows"
+  },
+  {
+    "name": "ComfyUI-Impact-Pack",
+    "url": "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git",
+    "folder": "ComfyUI-Impact-Pack",
+    "note": "FaceDetailer, SAMLoader, UltralyticsDetectorProvider, mask tools"
+  },
+  {
+    "name": "ComfyUI-Impact-Subpack",
+    "url": "https://github.com/comfyorg/comfyui-impact-subpack.git",
+    "folder": "ComfyUI-Impact-Subpack",
+    "note": "MaskFix+, DetailerForEach — needed for HQ detailer workflow"
+  },
+
+  {
+    "name": "ComfyUI-Inpaint-CropAndStitch",
+    "url": "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git",
+    "folder": "ComfyUI-Inpaint-CropAndStitch",
+    "note": "InpaintCropImproved, InpaintStitchImproved — inpaint workflow"
+  },
+  {
+    "name": "ComfyUI_LayerStyle",
+    "url": "https://github.com/chflame163/ComfyUI_LayerStyle.git",
+    "folder": "ComfyUI_LayerStyle",
+    "note": "LayerMask: PersonMaskUltra, PurgeVRAM — inpaint + video workflows"
+  },
+  {
+    "name": "ComfyUI-Easy-Use",
+    "url": "https://github.com/yolain/ComfyUI-Easy-Use.git",
+    "folder": "ComfyUI-Easy-Use",
+    "note": "easy showAnything, easy int — UI helpers"
+  },
+  {
+    "name": "ComfyUI-Custom-Scripts",
+    "url": "https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git",
+    "folder": "ComfyUI-Custom-Scripts",
+    "note": "ShowText|pysssss — debug display"
+  },
+
+  {
+    "name": "ComfyUI-Florence2",
+    "url": "https://github.com/kijai/ComfyUI-Florence2.git",
+    "folder": "ComfyUI-Florence2",
+    "note": "Florence2 model loader + run — HQ detailer workflow"
+  },
+  {
+    "name": "ComfyUI-segment-anything-2",
+    "url": "https://github.com/kijai/ComfyUI-segment-anything-2.git",
+    "folder": "ComfyUI-segment-anything-2",
+    "note": "SAM2 segmentation — HQ detailer workflow"
+  },
+  {
+    "name": "ComfyUI-Styles-CSV-Loader",
+    "url": "https://github.com/theUpsider/ComfyUI-Styles_CSV_Loader.git",
+    "folder": "ComfyUI-Styles_CSV_Loader",
+    "note": "Load Styles CSV — prompt style selector"
+  },
+
+  {
+    "name": "ComfyUI-WanVideoWrapper",
+    "url": "https://github.com/kijai/ComfyUI-WanVideoWrapper.git",
+    "folder": "ComfyUI-WanVideoWrapper",
+    "note": "Core Wan video nodes — img2vid, 6frames, basic InfiniteTalk"
+  },
+  {
+    "name": "ComfyUI-WanVideoWrapper-MultiTalk",
+    "url": "https://github.com/MaTeZZ/ComfyUI-WanVideoWrapper-MultiTalk.git",
+    "folder": "ComfyUI-WanVideoWrapper-MultiTalk",
+    "note": "MultiTalk extension — WanVideoImageToVideoMultiTalk, MultiTalkWav2VecEmbeds"
+  },
+  {
+    "name": "ComfyUI-VideoHelperSuite",
+    "url": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git",
+    "folder": "ComfyUI-VideoHelperSuite",
+    "note": "VHS_VideoCombine, ImageBatch — all video workflows"
+  },
+  {
+    "name": "ComfyUI-Frame-Interpolation",
+    "url": "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git",
+    "folder": "ComfyUI-Frame-Interpolation",
+    "note": "RIFE VFI — frame interpolation for smooth video"
   }
 ]
