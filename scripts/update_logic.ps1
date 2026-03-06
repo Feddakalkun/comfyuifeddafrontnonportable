@@ -240,4 +240,4 @@ if ($CleanedCount -eq 0) {
 Write-Host "`n===================================================" -ForegroundColor Green
 Write-Host "   UPDATE COMPLETE - READY TO GENERATE!" -ForegroundColor Green
 Write-Host "===================================================" -ForegroundColor Green
-Write-Host "You can now close this window and run 'run.bat'"
+Write-Host "You can now close this window and run run.bat"
