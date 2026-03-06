@@ -19,6 +19,11 @@ $LogsDir = Join-Path $RootPath "logs"
 if (-not (Test-Path $LogsDir)) { New-Item -ItemType Directory -Path $LogsDir | Out-Null }
 $LogFile = Join-Path $LogsDir "install_log.txt"
 
+# Start full transcript — captures ALL console output (pip, git, etc.)
+$TranscriptFile = Join-Path $LogsDir "install_full_log.txt"
+try { Stop-Transcript -ErrorAction SilentlyContinue } catch {}
+Start-Transcript -Path $TranscriptFile -Force
+
 function Write-Log {
     param([string]$Message)
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -770,6 +775,10 @@ Write-Log "`n================================================"
 Write-Log " ComfyUI Setup Complete!"
 Write-Log " Returning to main installer..."
 Write-Log "================================================"
+
+# Stop transcript logging
+try { Stop-Transcript } catch {}
+Write-Log "Full log saved to: $TranscriptFile"
 
 # Return to install.bat which handles the pause
 Write-Host ""
