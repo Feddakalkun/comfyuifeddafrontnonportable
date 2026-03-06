@@ -207,7 +207,8 @@ $LegacyFolders = @(
     "ComfyUI\custom_nodes\ComfyUI-Image-Saver",
     "ComfyUI\custom_nodes\ComfyUI-VoxCPM",
     "ComfyUI\custom_nodes\ComfyUI_Fill-Nodes",
-    "ComfyUI\custom_nodes\Derfuu_ComfyUI_ModdedNodes"
+    "ComfyUI\custom_nodes\Derfuu_ComfyUI_ModdedNodes",
+    "ComfyUI\custom_nodes\Bjornulf_custom_nodes"
 )
 
 $CleanedCount = 0

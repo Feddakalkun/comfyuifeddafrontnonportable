@@ -18,10 +18,10 @@
     "note": "Power Lora Loader, Image Comparer — used in all z-image + wan22 workflows"
   },
   {
-    "name": "Bjornulf_custom_nodes",
-    "url": "https://github.com/Bjornulf01/Bjornulf_custom_nodes.git",
-    "folder": "Bjornulf_custom_nodes",
-    "note": "HuggingFace Model Downloader Pro — used in 6/7 workflows"
+    "name": "ComfyUI-Studio-nodes",
+    "url": "https://github.com/comfyuistudio/ComfyUI-Studio-nodes.git",
+    "folder": "ComfyUI-Studio-nodes",
+    "note": "HuggingFace Model Downloader — used in 6/7 workflows"
   },
   {
     "name": "ComfyUI-Impact-Pack",
