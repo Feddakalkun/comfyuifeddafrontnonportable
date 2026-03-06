@@ -36,7 +36,7 @@
   },
   "6": {
     "inputs": {
-      "text": "obese, fat, overweight, muscular, thick, curvy, large breasts, big butt, wide hips, smooth skin, airbrushed, cartoon, anime, 3d render, bad anatomy, blurry, watermark, face hidden, flat lighting",
+      "text": "cartoon, anime, 3d render, bad anatomy, blurry, watermark, face hidden, flat lighting",
       "speak_and_recognation": {
         "__value__": [
           false,
@@ -386,7 +386,7 @@
   },
   "118": {
     "inputs": {
-      "text": "a woman, youthful round face, dark brown eyes, pale fair skin, light brown hair with blonde highlights, natural expression, detailed skin pores",
+      "text": "",
       "speak_and_recognation": {
         "__value__": [
           false,
@@ -401,7 +401,7 @@
   },
   "119": {
     "inputs": {
-      "text": "a woman, youthful round face, dark brown eyes, pale fair skin, light brown hair with blonde highlights, natural expression, detailed skin pores",
+      "text": "",
       "speak_and_recognation": {
         "__value__": [
           false,
@@ -416,7 +416,7 @@
   },
   "121": {
     "inputs": {
-      "text_0": "a woman, youthful round face, dark brown eyes, pale fair skin, light brown hair with blonde highlights, natural expression, detailed skin pores",
+      "text_0": "",
       "text": [
         "114",
         0
@@ -429,7 +429,7 @@
   },
   "124": {
     "inputs": {
-      "lora_name": "personal\\Elev\\elev-zimage.safetensors",
+      "lora_name": "",
       "strength_model": 0.95,
       "strength_clip": 0.95,
       "model": [
@@ -448,7 +448,7 @@
   },
   "125": {
     "inputs": {
-      "lora_name": "personal\\Elev\\elev-zimage.safetensors",
+      "lora_name": "",
       "strength_model": 0.95,
       "strength_clip": 0.95,
       "model": [
@@ -506,7 +506,7 @@
   },
   "145": {
     "inputs": {
-      "filename_prefix": "IMAGE/ZIMAGE/Elev_HQ_Thong_Public/train_window",
+      "filename_prefix": "IMAGE/ZIMAGE/HQ",
       "images": [
         "102",
         0

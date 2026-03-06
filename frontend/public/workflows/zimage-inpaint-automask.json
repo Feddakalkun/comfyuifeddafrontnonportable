@@ -240,7 +240,7 @@
   },
   "164": {
     "inputs": {
-      "image": "pose.png"
+      "image": ""
     },
     "class_type": "LoadImage",
     "_meta": {

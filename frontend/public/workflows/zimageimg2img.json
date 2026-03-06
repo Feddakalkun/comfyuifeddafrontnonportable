@@ -210,7 +210,7 @@
   },
   "50": {
     "inputs": {
-      "string": "woman sexy model hq 4k"
+      "string": ""
     },
     "class_type": "String Literal",
     "_meta": {
@@ -229,7 +229,7 @@
   },
   "52": {
     "inputs": {
-      "image": "pasted/image (1).png"
+      "image": ""
     },
     "class_type": "LoadImage",
     "_meta": {
