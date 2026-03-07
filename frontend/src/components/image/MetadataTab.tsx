@@ -83,7 +83,7 @@ function parseWorkflow(workflow: Record<string, any>): ParsedMetadata {
 
         // Positive prompt
         if (cls === 'CLIPTextEncode' && !result.prompt) {
-            const text = inputs.text as string;
+            const text = typeof inputs.text === 'string' ? inputs.text : null;
             if (text && !text.toLowerCase().includes('blurry') && !text.toLowerCase().includes('bad anatomy')) {
                 result.prompt = text;
             }
@@ -91,7 +91,7 @@ function parseWorkflow(workflow: Record<string, any>): ParsedMetadata {
 
         // Negative prompt (heuristic: contains common negative terms)
         if (cls === 'CLIPTextEncode') {
-            const text = inputs.text as string;
+            const text = typeof inputs.text === 'string' ? inputs.text : null;
             if (text && (text.toLowerCase().includes('blurry') || text.toLowerCase().includes('bad anatomy') || text.toLowerCase().includes('low quality'))) {
                 result.negativePrompt = result.negativePrompt ?? text;
             }
