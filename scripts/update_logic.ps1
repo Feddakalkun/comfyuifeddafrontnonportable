@@ -256,7 +256,6 @@ $LegacyFolders = @(
     "ComfyUI\custom_nodes\comfy-image-saver",
     "ComfyUI\custom_nodes\ComfyUI-Timer-Nodes",
     "ComfyUI\custom_nodes\comfyui-various",
-    "ComfyUI\custom_nodes\was-node-suite-comfyui",
     "ComfyUI\custom_nodes\ComfyUI-Image-Saver",
     "ComfyUI\custom_nodes\ComfyUI-VoxCPM",
     "ComfyUI\custom_nodes\ComfyUI_Fill-Nodes",

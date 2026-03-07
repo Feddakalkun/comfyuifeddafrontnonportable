@@ -108,6 +108,12 @@
     "name": "ComfyUI_essentials",
     "url": "https://github.com/cubiq/ComfyUI_essentials.git",
     "folder": "ComfyUI_essentials",
-    "note": "Text Concatenate, image utilities — used in z-image workflows"
+    "note": "Essential image utilities"
+  },
+  {
+    "name": "was-node-suite-comfyui",
+    "url": "https://github.com/WASasquatch/was-node-suite-comfyui.git",
+    "folder": "was-node-suite-comfyui",
+    "note": "Text Concatenate, Text Multiline, image utilities — widely used in workflows"
   }
 ]
