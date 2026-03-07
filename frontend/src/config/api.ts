@@ -49,6 +49,7 @@ export const APP_CONFIG = {
 export const MODELS = {
     IMAGE: [
         { id: 'z-image', label: 'Z-Image', icon: 'Sparkles' },
+        { id: 'qwen-angle', label: 'Qwen Multi-Angle', icon: 'Box' },
     ],
     VIDEO: [
         { id: 'wan2.1', label: 'Wan 2.1', icon: 'Video' },

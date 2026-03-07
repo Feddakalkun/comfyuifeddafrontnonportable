@@ -1,20 +1,22 @@
 // Image Generation Page — Tab Container
-import { useState } from 'react';
-import { Sparkles, Image, Paintbrush, Layers } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Sparkles, Image, Paintbrush, Layers, FileText } from 'lucide-react';
 import { ModelDownloader } from '../components/ModelDownloader';
 import { ImageGallery } from '../components/image/ImageGallery';
 import { GenerateTab } from '../components/image/GenerateTab';
 import { HQPortraitTab } from '../components/image/HQPortraitTab';
 import { Img2ImgTab } from '../components/image/Img2ImgTab';
 import { InpaintTab } from '../components/image/InpaintTab';
+import { MetadataTab } from '../components/image/MetadataTab';
 
-type ImageMode = 'generate' | 'hq' | 'img2img' | 'inpaint';
+type ImageMode = 'generate' | 'hq' | 'img2img' | 'inpaint' | 'metadata';
 
 const TABS: { id: ImageMode; label: string; icon: React.ElementType }[] = [
     { id: 'generate', label: 'GENERATE', icon: Sparkles },
     { id: 'hq', label: 'HQ PORTRAIT', icon: Layers },
     { id: 'img2img', label: 'IMG2IMG', icon: Image },
     { id: 'inpaint', label: 'INPAINT', icon: Paintbrush },
+    { id: 'metadata', label: 'METADATA', icon: FileText },
 ];
 
 interface ImagePageProps {
@@ -25,10 +27,16 @@ interface ImagePageProps {
 export const ImagePage = ({ modelId }: ImagePageProps) => {
     const [activeMode, setActiveMode] = useState<ImageMode>('generate');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<string[]>(() => {
         const saved = localStorage.getItem(`gallery_${modelId}`);
         return saved ? JSON.parse(saved) : [];
     });
+
+    const handleSendToTab = useCallback((tab: ImageMode, imageUrl: string) => {
+        setPendingImageUrl(imageUrl);
+        setActiveMode(tab);
+    }, []);
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
@@ -61,6 +69,14 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                     {activeMode === 'hq' && <HQPortraitTab isGenerating={isGenerating} setIsGenerating={setIsGenerating} />}
                     {activeMode === 'img2img' && <Img2ImgTab isGenerating={isGenerating} setIsGenerating={setIsGenerating} />}
                     {activeMode === 'inpaint' && <InpaintTab isGenerating={isGenerating} setIsGenerating={setIsGenerating} />}
+                    {activeMode === 'metadata' && (
+                        <MetadataTab
+                            isGenerating={isGenerating}
+                            setIsGenerating={setIsGenerating}
+                            initialImageUrl={pendingImageUrl}
+                            onConsumeImage={() => setPendingImageUrl(null)}
+                        />
+                    )}
                 </div>
 
                 {/* Right: Shared Gallery */}
@@ -70,6 +86,7 @@ export const ImagePage = ({ modelId }: ImagePageProps) => {
                     isGenerating={isGenerating}
                     setIsGenerating={setIsGenerating}
                     galleryKey={modelId}
+                    onSendToTab={handleSendToTab}
                 />
             </div>
         </div>

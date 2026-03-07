@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { ImagePage } from './pages/ImagePage';
+import { QwenAnglePage } from './pages/QwenAnglePage';
 import { VideoPage } from './pages/VideoPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ChatPage } from './pages/ChatPage';
@@ -78,7 +79,14 @@ function App() {
 
             {/* Content Area */}
             <div className="flex-1 overflow-auto relative z-0">
-              {activeTab === 'image' && (
+              {activeTab === 'image' && currentModel.id === 'qwen-angle' && (
+                <QwenAnglePage
+                  modelId={currentModel.id}
+                  modelLabel={currentModel.label}
+                />
+              )}
+
+              {activeTab === 'image' && currentModel.id !== 'qwen-angle' && (
                 <ImagePage
                   modelId={currentModel.id}
                   modelLabel={currentModel.label}

@@ -24,6 +24,7 @@ export const GenerateTab = ({ isGenerating, setIsGenerating }: GenerateTabProps)
     const [cfg, setCfg] = useState(1);
     const [dimensions, setDimensions] = useState('1024x1536');
     const [seed, setSeed] = useState(-1);
+    const [batchCount, setBatchCount] = useState(1);
     const [selectedLoras, setSelectedLoras] = useState<SelectedLora[]>([]);
     const [availableLoras, setAvailableLoras] = useState<string[]>([]);
 
@@ -43,49 +44,54 @@ export const GenerateTab = ({ isGenerating, setIsGenerating }: GenerateTabProps)
         try {
             const response = await fetch('/workflows/z-image-master.json');
             if (!response.ok) throw new Error('Failed to load workflow');
-            const workflow = await response.json();
+            const baseWorkflow = await response.json();
 
-            const activeSeed = Math.floor(Math.random() * 1000000000000000);
+            for (let batch = 0; batch < batchCount; batch++) {
+                const workflow = JSON.parse(JSON.stringify(baseWorkflow));
+                const activeSeed = seed >= 0 && batchCount === 1 ? seed : Math.floor(Math.random() * 1000000000000000);
 
-            // Expand wildcards
-            let finalPrompt = prompt;
-            if (prompt.includes('__')) {
-                try {
-                    const expandResp = await fetch(`http://localhost:8000/api/wildcards/expand?text=${encodeURIComponent(prompt)}`);
-                    const expandData = await expandResp.json();
-                    if (expandData.success) finalPrompt = expandData.expanded;
-                } catch { /* use raw prompt */ }
+                // Expand wildcards (re-expand each batch for random wildcard variation)
+                let finalPrompt = prompt;
+                if (prompt.includes('__')) {
+                    try {
+                        const expandResp = await fetch(`http://localhost:8000/api/wildcards/expand?text=${encodeURIComponent(prompt)}`);
+                        const expandData = await expandResp.json();
+                        if (expandData.success) finalPrompt = expandData.expanded;
+                    } catch { /* use raw prompt */ }
+                }
+
+                // Node 3: KSampler
+                workflow["3"].inputs.seed = activeSeed;
+                workflow["3"].inputs.steps = steps;
+                workflow["3"].inputs.cfg = cfg;
+
+                // Node 6: Positive Prompt (CLIPTextEncode)
+                workflow["6"].inputs.text = finalPrompt;
+
+                // Node 7: Negative Prompt (CLIPTextEncode)
+                workflow["7"].inputs.text = negativePrompt;
+
+                // Node 30: Dimensions
+                const [w, h] = dimensions.split('x').map(Number);
+                workflow["30"].inputs.width = w;
+                workflow["30"].inputs.height = h;
+
+                // Node 126: Power Lora Loader
+                if (selectedLoras.length > 0) {
+                    selectedLoras.slice(0, 5).forEach((l, index) => {
+                        workflow["126"].inputs[`lora_${index + 1}`] = { on: true, lora: l.name, strength: l.strength };
+                    });
+                }
+
+                // Node 181: FaceDetailer resolution
+                const maxDim = Math.max(w, h);
+                workflow["181"].inputs.guide_size = maxDim;
+                workflow["181"].inputs.max_size = maxDim;
+
+                await queueWorkflow(workflow);
             }
 
-            // Node 3: KSampler
-            workflow["3"].inputs.seed = activeSeed;
-            workflow["3"].inputs.steps = steps;
-            workflow["3"].inputs.cfg = cfg;
-
-            // Node 6: Positive Prompt (CLIPTextEncode)
-            workflow["6"].inputs.text = finalPrompt;
-
-            // Node 7: Negative Prompt (CLIPTextEncode)
-            workflow["7"].inputs.text = negativePrompt;
-
-            // Node 30: Dimensions
-            const [w, h] = dimensions.split('x').map(Number);
-            workflow["30"].inputs.width = w;
-            workflow["30"].inputs.height = h;
-
-            // Node 126: Power Lora Loader
-            if (selectedLoras.length > 0) {
-                selectedLoras.slice(0, 5).forEach((l, index) => {
-                    workflow["126"].inputs[`lora_${index + 1}`] = { on: true, lora: l.name, strength: l.strength };
-                });
-            }
-
-            // Node 181: FaceDetailer resolution
-            const maxDim = Math.max(w, h);
-            workflow["181"].inputs.guide_size = maxDim;
-            workflow["181"].inputs.max_size = maxDim;
-
-            await queueWorkflow(workflow);
+            if (batchCount > 1) toast(`Queued ${batchCount} images!`, 'success');
         } catch (error: any) {
             console.error('Generation failed:', error);
             toast(error?.message || 'Generation failed!', 'error');
@@ -140,6 +146,23 @@ export const GenerateTab = ({ isGenerating, setIsGenerating }: GenerateTabProps)
                         <div>
                             <label className="block text-xs text-slate-400 mb-2">Seed (-1 for random)</label>
                             <input type="number" value={seed} onChange={(e) => setSeed(parseInt(e.target.value))} className="w-full bg-[#0a0a0f] border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-white/20" />
+                        </div>
+
+                        {/* Batch Count */}
+                        <div>
+                            <label className="block text-xs text-slate-400 mb-2">Batch Count: {batchCount}</label>
+                            <div className="flex items-center gap-2">
+                                {[1, 2, 4, 8].map(n => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setBatchCount(n)}
+                                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${batchCount === n ? 'bg-white text-black' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10'}`}
+                                    >
+                                        {n === 1 ? '×1' : `×${n}`}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-slate-600 mt-1">Queue multiple images with different seeds</p>
                         </div>
                     </div>
                 )}

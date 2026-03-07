@@ -832,6 +832,43 @@ REQUIRED_MODELS = {
             "path": "sams/sam_vit_b_01ec64.pth",
             "size_gb": 0.375
         }
+    ],
+    "qwen-angle": [
+        {
+            "id": "qwen-unet",
+            "name": "Qwen-Image-Edit-2511-FP8_e4m3fn.safetensors",
+            "url": "https://huggingface.co/1038lab/Qwen-Image-Edit-2511-FP8/resolve/main/Qwen-Image-Edit-2511-FP8_e4m3fn.safetensors",
+            "path": "diffusion_models/Qwen-Image-Edit-2511-FP8_e4m3fn.safetensors",
+            "size_gb": 19.03
+        },
+        {
+            "id": "qwen-clip",
+            "name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+            "path": "text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors",
+            "size_gb": 8.74
+        },
+        {
+            "id": "qwen-vae",
+            "name": "qwen_image_vae.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors",
+            "path": "vae/qwen_image_vae.safetensors",
+            "size_gb": 0.242
+        },
+        {
+            "id": "qwen-angle-lora",
+            "name": "qwen-image-edit-2511-multiple-angles-lora.safetensors",
+            "url": "https://huggingface.co/fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA/resolve/main/qwen-image-edit-2511-multiple-angles-lora.safetensors",
+            "path": "loras/qwen-image-edit-2511-multiple-angles-lora.safetensors",
+            "size_gb": 0.281
+        },
+        {
+            "id": "qwen-lightning-lora",
+            "name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+            "url": "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+            "path": "loras/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+            "size_gb": 0.810
+        }
     ]
 }
 

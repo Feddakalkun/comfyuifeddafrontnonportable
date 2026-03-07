@@ -494,7 +494,7 @@ export const GalleryPage = () => {
                                     onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
                                 />
                             ) : (
-                                <img src={file.url} alt={file.filename} className="w-full h-full object-cover" />
+                                <img src={file.url} alt={file.filename} draggable className="w-full h-full object-cover" />
                             )}
 
                             {/* Video badge */}

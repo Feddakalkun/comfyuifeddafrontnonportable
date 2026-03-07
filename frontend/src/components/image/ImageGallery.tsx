@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Maximize2, X, Trash2, Video } from 'lucide-react';
+import { Sparkles, Maximize2, X, Trash2, Video, FileText } from 'lucide-react';
 import { comfyService } from '../../services/comfyService';
 import { useComfyExecution } from '../../contexts/ComfyExecutionContext';
 import { useToast } from '../ui/Toast';
@@ -10,9 +10,10 @@ interface ImageGalleryProps {
     isGenerating: boolean;
     setIsGenerating: React.Dispatch<React.SetStateAction<boolean>>;
     galleryKey: string;
+    onSendToTab?: (tab: string, imageUrl: string) => void;
 }
 
-export const ImageGallery = ({ generatedImages, setGeneratedImages, isGenerating, setIsGenerating, galleryKey }: ImageGalleryProps) => {
+export const ImageGallery = ({ generatedImages, setGeneratedImages, isGenerating, setIsGenerating, galleryKey, onSendToTab }: ImageGalleryProps) => {
     const { state: execState, progress: execProgress, currentNodeName, lastCompletedPromptId } = useComfyExecution();
     const { toast } = useToast();
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -146,17 +147,22 @@ export const ImageGallery = ({ generatedImages, setGeneratedImages, isGenerating
                     <div className="w-full h-full p-4 overflow-y-auto custom-scrollbar">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {generatedImages.map((img, idx) => (
-                                <div key={idx} className="group relative aspect-square bg-black/20 rounded-xl overflow-hidden border border-white/10 hover:border-white/50 transition-all duration-300">
-                                    <img src={img} alt={`Generated ${idx}`} className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-110" onClick={() => setSelectedImage(img)} />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3">
-                                        <button onClick={(e) => { e.stopPropagation(); setSelectedImage(img); }} className="p-3 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all">
-                                            <Maximize2 className="w-5 h-5 text-white" />
+                                <div key={idx} className="group/card relative aspect-square bg-black/20 rounded-xl overflow-hidden border border-white/10 hover:border-white/50 transition-all duration-300">
+                                    <img src={img} alt={`Generated ${idx}`} draggable className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover/card:scale-110" onClick={() => setSelectedImage(img)} />
+                                    <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/40 transition-all duration-300 opacity-0 group-hover/card:opacity-100 flex items-center justify-center gap-2">
+                                        <button onClick={(e) => { e.stopPropagation(); setSelectedImage(img); }} className="p-2.5 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-all" title="View full size">
+                                            <Maximize2 className="w-4 h-4 text-white" />
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('active_input_image', img); toast('Image selected for Video generation! Go to Video tab.', 'success'); }} className="p-3 bg-blue-500/20 hover:bg-blue-500/30 rounded-full backdrop-blur-sm transition-all" title="Use as input for Video">
-                                            <Video className="w-5 h-5 text-blue-400" />
+                                        {onSendToTab && (
+                                            <button onClick={(e) => { e.stopPropagation(); onSendToTab('metadata', img); }} className="p-2.5 bg-amber-500/20 hover:bg-amber-500/30 rounded-full backdrop-blur-sm transition-all" title="Read metadata">
+                                                <FileText className="w-4 h-4 text-amber-400" />
+                                            </button>
+                                        )}
+                                        <button onClick={(e) => { e.stopPropagation(); localStorage.setItem('active_input_image', img); toast('Image selected for Video generation! Go to Video tab.', 'success'); }} className="p-2.5 bg-blue-500/20 hover:bg-blue-500/30 rounded-full backdrop-blur-sm transition-all" title="Use as input for Video">
+                                            <Video className="w-4 h-4 text-blue-400" />
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete this image permanently?')) handleDeleteImage(img, idx); }} className="p-3 bg-red-500/20 hover:bg-red-500/30 rounded-full backdrop-blur-sm transition-all">
-                                            <Trash2 className="w-5 h-5 text-red-400" />
+                                        <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete this image permanently?')) handleDeleteImage(img, idx); }} className="p-2.5 bg-red-500/20 hover:bg-red-500/30 rounded-full backdrop-blur-sm transition-all" title="Delete">
+                                            <Trash2 className="w-4 h-4 text-red-400" />
                                         </button>
                                     </div>
                                 </div>
