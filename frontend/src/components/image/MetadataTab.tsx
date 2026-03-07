@@ -64,13 +64,25 @@ async function readPngMetadata(data: ArrayBuffer): Promise<Record<string, string
     return metadata;
 }
 
+// Negative prompt indicator words
+const NEGATIVE_WORDS = ['blurry', 'bad anatomy', 'low quality', 'worst quality', 'ugly', 'deformed', 'disfigured', 'watermark', 'bad hands', 'extra fingers', 'poorly drawn'];
+
+function isNegativePrompt(text: string): boolean {
+    const lower = text.toLowerCase();
+    return NEGATIVE_WORDS.filter(w => lower.includes(w)).length >= 2;
+}
+
 // ── Extract human-readable params from ComfyUI API workflow ────────
 function parseWorkflow(workflow: Record<string, any>): ParsedMetadata {
     const result: ParsedMetadata = { rawWorkflow: workflow, loras: [] };
 
-    for (const [, node] of Object.entries(workflow)) {
+    // First pass: collect all string texts from any node that produces text
+    const allTexts: { text: string; nodeId: string; cls: string; title: string }[] = [];
+
+    for (const [nodeId, node] of Object.entries(workflow)) {
         const cls = node.class_type as string;
         const inputs = node.inputs || {};
+        const title = (node._meta?.title || '').toLowerCase();
 
         // KSampler variants
         if (cls?.includes('KSampler') || cls === 'SamplerCustom') {
@@ -82,19 +94,10 @@ function parseWorkflow(workflow: Record<string, any>): ParsedMetadata {
             result.scheduler = result.scheduler ?? inputs.scheduler;
         }
 
-        // Positive prompt
-        if (cls === 'CLIPTextEncode' && !result.prompt) {
-            const text = typeof inputs.text === 'string' ? inputs.text : null;
-            if (text && !text.toLowerCase().includes('blurry') && !text.toLowerCase().includes('bad anatomy')) {
-                result.prompt = text;
-            }
-        }
-
-        // Negative prompt (heuristic: contains common negative terms)
-        if (cls === 'CLIPTextEncode') {
-            const text = typeof inputs.text === 'string' ? inputs.text : null;
-            if (text && (text.toLowerCase().includes('blurry') || text.toLowerCase().includes('bad anatomy') || text.toLowerCase().includes('low quality'))) {
-                result.negativePrompt = result.negativePrompt ?? text;
+        // Collect text from any node that has a string 'text' input
+        for (const key of ['text', 'text_positive', 'text_negative', 'string', 'text1', 'text2', 'value']) {
+            if (typeof inputs[key] === 'string' && inputs[key].trim().length > 5) {
+                allTexts.push({ text: inputs[key], nodeId, cls: cls || '', title });
             }
         }
 
@@ -118,13 +121,43 @@ function parseWorkflow(workflow: Record<string, any>): ParsedMetadata {
             if (inputs.lora_name) {
                 result.loras!.push({ name: inputs.lora_name, strength: inputs.strength_model ?? 1 });
             }
-            // Power Lora Loader has lora_1, lora_2, etc.
             for (let i = 1; i <= 5; i++) {
                 const l = inputs[`lora_${i}`];
                 if (l && typeof l === 'object' && l.on && l.lora) {
                     result.loras!.push({ name: l.lora, strength: l.strength ?? 1 });
                 }
             }
+        }
+    }
+
+    // Second pass: identify positive and negative prompts from collected texts
+    // Priority: title hints > content heuristic > longest text
+    for (const t of allTexts) {
+        if (t.title.includes('negative') || t.title.includes('neg')) {
+            result.negativePrompt = result.negativePrompt ?? t.text;
+        } else if (t.title.includes('positive') || t.title.includes('prompt')) {
+            result.prompt = result.prompt ?? t.text;
+        }
+    }
+
+    // Fallback: use content heuristic
+    if (!result.prompt || !result.negativePrompt) {
+        for (const t of allTexts) {
+            if (isNegativePrompt(t.text)) {
+                result.negativePrompt = result.negativePrompt ?? t.text;
+            } else if (!result.prompt && t.text.length > 10) {
+                result.prompt = t.text;
+            }
+        }
+    }
+
+    // Last resort: longest text that isn't already assigned
+    if (!result.prompt) {
+        const remaining = allTexts
+            .filter(t => t.text !== result.negativePrompt)
+            .sort((a, b) => b.text.length - a.text.length);
+        if (remaining.length > 0) {
+            result.prompt = remaining[0].text;
         }
     }
 
