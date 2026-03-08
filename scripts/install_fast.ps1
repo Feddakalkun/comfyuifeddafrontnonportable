@@ -173,10 +173,11 @@ if (-not (Test-Path $VenvPy)) {
 
 # Helper to run pip in venv
 function Venv-Pip {
-    param([string]$Args)
-    $proc = Start-Process -FilePath $VenvPy -ArgumentList "-m pip $Args" -NoNewWindow -Wait -PassThru
-    if ($proc.ExitCode -ne 0) {
-        Write-Step "WARNING: pip command had issues: $Args" "Yellow"
+    param([string]$PipArgs)
+    $cmd = "$VenvPy -m pip $PipArgs"
+    Invoke-Expression $cmd
+    if ($LASTEXITCODE -ne 0) {
+        Write-Step "WARNING: pip command had issues: $PipArgs" "Yellow"
     }
 }
 
