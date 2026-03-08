@@ -241,6 +241,7 @@ $Deps = @(
     "beautifulsoup4", "lxml", "shapely",
     "deepdiff", "matplotlib", "scipy", "scikit-image", "scikit-learn",
     "timm", "colour-science", "blend-modes", "loguru",
+    "ultralytics", "opencv-python-headless", "dill",
     "fastapi", "uvicorn[standard]", "python-multipart"
 )
 Venv-Pip "install $($Deps -join ' ')"
