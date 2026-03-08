@@ -3,40 +3,41 @@ setlocal
 cd /d "%~dp0"
 
 echo ==========================================
-echo      UPDATING COMFYFRONT APPLICATION
+echo      UPDATING FEDDA (Fast Mode)
 echo ==========================================
 echo.
 echo Pulling latest changes from GitHub...
 
-:: Use embedded git if system git is not available
-where git >nul 2>&1
-if %errorlevel% neq 0 (
-    if exist "%~dp0git_embeded\cmd\git.exe" (
-        echo Using embedded git...
-        set "PATH=%~dp0git_embeded\cmd;%PATH%"
-    ) else (
-        echo [ERROR] Git not found! Please run install.bat first.
-        pause
-        exit /b 1
-    )
-)
-
-:: If not a git repo (downloaded as ZIP), initialize it
-if not exist "%~dp0.git" (
-    echo No git repo found - initializing from GitHub...
-    git init
-    git remote add origin https://github.com/Feddakalkun/comfyuifeddafront.git
-)
-
-:: Always fetch and reset to match GitHub exactly
-:: This ensures local changes never block the update
 git fetch origin main
 git reset --hard origin/main
 git clean -fd
 
 echo.
-echo Running repair and installation script...
+echo Running update logic...
+
+:: For fast install: create a junction so update_logic.ps1 finds python_embeded\python.exe
+:: update_logic.ps1 expects python_embeded\python.exe — we map venv\Scripts there
+if exist "%~dp0venv\Scripts\python.exe" (
+    if not exist "%~dp0python_embeded" (
+        echo Setting up venv compatibility layer...
+        mklink /J "%~dp0python_embeded" "%~dp0venv\Scripts" >nul 2>&1
+        if errorlevel 1 (
+            echo [NOTE] Junction failed. Running with system python fallback...
+        )
+    )
+)
+
 powershell -ExecutionPolicy Bypass -File "scripts\update_logic.ps1"
+
+:: Clean up temporary junction (only if it IS a junction, not real portable python)
+if exist "%~dp0python_embeded" (
+    if exist "%~dp0venv\Scripts\python.exe" (
+        fsutil reparsepoint query "%~dp0python_embeded" >nul 2>&1
+        if not errorlevel 1 (
+            rmdir "%~dp0python_embeded" >nul 2>&1
+        )
+    )
+)
 
 echo.
 echo Update finished.
