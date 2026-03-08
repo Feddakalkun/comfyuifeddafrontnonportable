@@ -1,44 +1,44 @@
 @echo off
-setlocal
 cd /d "%~dp0"
 
+echo.
 echo ==========================================
-echo      UPDATING FEDDA (Fast Mode)
+echo      UPDATING FEDDA
 echo ==========================================
 echo.
-echo Pulling latest changes from GitHub...
 
-git fetch origin main
-git reset --hard origin/main
-git clean -fd
+:: Pull latest code (safe merge, won't delete local files)
+echo Pulling latest from GitHub...
+git pull origin main
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Git pull failed. You may have local changes.
+    echo   Try: git stash, then run this again.
+    pause
+    exit /b 1
+)
 
-echo.
-echo Running update logic...
-
-:: For fast install: create a junction so update_logic.ps1 finds python_embeded\python.exe
-:: update_logic.ps1 expects python_embeded\python.exe — we map venv\Scripts there
+:: Reinstall Python deps if venv exists
 if exist "%~dp0venv\Scripts\python.exe" (
-    if not exist "%~dp0python_embeded" (
-        echo Setting up venv compatibility layer...
-        mklink /J "%~dp0python_embeded" "%~dp0venv\Scripts" >nul 2>&1
-        if errorlevel 1 (
-            echo [NOTE] Junction failed. Running with system python fallback...
-        )
-    )
+    echo.
+    echo Updating Python dependencies...
+    "%~dp0venv\Scripts\python.exe" -m pip install -r ComfyUI\requirements.txt --quiet 2>nul
+    echo Python deps updated.
 )
 
-powershell -ExecutionPolicy Bypass -File "scripts\update_logic.ps1"
-
-:: Clean up temporary junction (only if it IS a junction, not real portable python)
-if exist "%~dp0python_embeded" (
-    if exist "%~dp0venv\Scripts\python.exe" (
-        fsutil reparsepoint query "%~dp0python_embeded" >nul 2>&1
-        if not errorlevel 1 (
-            rmdir "%~dp0python_embeded" >nul 2>&1
-        )
-    )
+:: Reinstall frontend deps if needed
+if exist "%~dp0frontend\package.json" (
+    echo.
+    echo Updating frontend dependencies...
+    cd /d "%~dp0frontend"
+    call npm install --silent 2>nul
+    cd /d "%~dp0"
+    echo Frontend deps updated.
 )
 
 echo.
-echo Update finished.
+echo ==========================================
+echo      UPDATE COMPLETE
+echo ==========================================
+echo.
 pause
