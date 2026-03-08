@@ -1,8 +1,8 @@
 # ============================================================================
-# FEDDA Fast Installer — Non-Portable (System Tools + venv)
+# FEDDA Fast Installer - Non-Portable (System Tools + venv)
 # ============================================================================
 # Assumes: Python 3.10+, Git, Node.js 18+, Ollama already on system
-# Creates: venv, ComfyUI, custom nodes, frontend, backend — ready to run
+# Creates: venv, ComfyUI, custom nodes, frontend, backend - ready to run
 # ============================================================================
 
 $ErrorActionPreference = "Stop"
@@ -26,9 +26,9 @@ function Write-Step {
 function Write-Header {
     param([string]$Title)
     Write-Host ""
-    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
+    Write-Host "  =================================================" -ForegroundColor DarkGray
     Write-Host "  $Title" -ForegroundColor Cyan
-    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
+    Write-Host "  =================================================" -ForegroundColor DarkGray
 }
 
 function Test-Command {
@@ -41,12 +41,12 @@ function Test-Command {
 # ============================================================================
 Clear-Host
 Write-Host ""
-Write-Host "  ╔══════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "  ║                                                  ║" -ForegroundColor Cyan
-Write-Host "  ║       FEDDA. FAST INSTALLER                      ║" -ForegroundColor Cyan
-Write-Host "  ║       Non-Portable — System Tools Mode           ║" -ForegroundColor Cyan
-Write-Host "  ║                                                  ║" -ForegroundColor Cyan
-Write-Host "  ╚══════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "  ========================================================" -ForegroundColor Cyan
+Write-Host "                                                          " -ForegroundColor Cyan
+Write-Host "         FEDDA. FAST INSTALLER                            " -ForegroundColor Cyan
+Write-Host "         Non-Portable - System Tools Mode                 " -ForegroundColor Cyan
+Write-Host "                                                          " -ForegroundColor Cyan
+Write-Host "  ========================================================" -ForegroundColor Cyan
 Write-Host ""
 
 # --- Detect System Tools ---
@@ -60,7 +60,7 @@ if (Test-Command "python") {
     $PyExe = (Get-Command python).Source
     Write-Step "Python:  $PyVersion  ($PyExe)" "Green"
 } else {
-    Write-Step "Python:  NOT FOUND — install from python.org" "Red"
+    Write-Step "Python:  NOT FOUND - install from python.org" "Red"
     $AllGood = $false
 }
 
@@ -69,7 +69,7 @@ if (Test-Command "git") {
     $GitVersion = & git --version 2>&1
     Write-Step "Git:     $GitVersion" "Green"
 } else {
-    Write-Step "Git:     NOT FOUND — install from git-scm.com" "Red"
+    Write-Step "Git:     NOT FOUND - install from git-scm.com" "Red"
     $AllGood = $false
 }
 
@@ -78,7 +78,7 @@ if (Test-Command "node") {
     $NodeVersion = & node --version 2>&1
     Write-Step "Node.js: $NodeVersion" "Green"
 } else {
-    Write-Step "Node.js: NOT FOUND — install from nodejs.org" "Red"
+    Write-Step "Node.js: NOT FOUND - install from nodejs.org" "Red"
     $AllGood = $false
 }
 
@@ -96,7 +96,7 @@ if (Test-Command "ollama") {
     $OllamaVersion = & ollama --version 2>&1
     Write-Step "Ollama:  $OllamaVersion" "Green"
 } else {
-    Write-Step "Ollama:  NOT FOUND (optional — AI chat won't work)" "Yellow"
+    Write-Step "Ollama:  NOT FOUND (optional - AI chat disabled)" "Yellow"
 }
 
 # NVIDIA GPU
@@ -108,10 +108,11 @@ try {
             $SmiOut = & nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>$null
             if ($SmiOut) { $VRAM_MB = [int]($SmiOut.Trim()) }
         } catch {}
-        $VRAMStr = if ($VRAM_MB -gt 0) { " ($([math]::Round($VRAM_MB / 1024)) GB VRAM)" } else { "" }
+        $VRAMStr = ""
+        if ($VRAM_MB -gt 0) { $VRAMStr = " ($([math]::Round($VRAM_MB / 1024)) GB VRAM)" }
         Write-Step "GPU:     $($NvidiaGPU.Name)$VRAMStr" "Green"
     } else {
-        Write-Step "GPU:     No NVIDIA GPU found — CUDA required!" "Red"
+        Write-Step "GPU:     No NVIDIA GPU found - CUDA required!" "Red"
         $AllGood = $false
     }
 } catch {
@@ -120,17 +121,24 @@ try {
 
 # RAM & Disk
 $OSInfo = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
-$RAM_GB = if ($OSInfo) { [math]::Round($OSInfo.TotalVisibleMemorySize / 1MB) } else { 0 }
+$RAM_GB = 0
+if ($OSInfo) { $RAM_GB = [math]::Round($OSInfo.TotalVisibleMemorySize / 1MB) }
 $Drive = (Get-Item $RootPath).PSDrive
 $FreeGB = [math]::Round($Drive.Free / 1GB)
 
-Write-Step "RAM:     ${RAM_GB} GB" $(if ($RAM_GB -ge 16) { "Green" } else { "Yellow" })
-Write-Step "Disk:    ${FreeGB} GB free on $($Drive.Name):\" $(if ($FreeGB -ge 10) { "Green" } elseif ($FreeGB -ge 5) { "Yellow" } else { "Red" })
+$RAMColor = "Yellow"
+if ($RAM_GB -ge 16) { $RAMColor = "Green" }
+Write-Step "RAM:     ${RAM_GB} GB" $RAMColor
+
+$DiskColor = "Red"
+if ($FreeGB -ge 10) { $DiskColor = "Green" }
+elseif ($FreeGB -ge 5) { $DiskColor = "Yellow" }
+Write-Step "Disk:    ${FreeGB} GB free on $($Drive.Name):\" $DiskColor
 
 Write-Host ""
 
 if (-not $AllGood) {
-    Write-Host "  MISSING REQUIREMENTS — install the tools marked in red above." -ForegroundColor Red
+    Write-Host "  MISSING REQUIREMENTS - install the tools marked in red above." -ForegroundColor Red
     Write-Host ""
     Read-Host "  Press Enter to exit"
     exit 1
@@ -147,7 +155,7 @@ $StopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 # ============================================================================
 # 1. PYTHON VENV
 # ============================================================================
-Write-Header "STEP 1/7 — Python Virtual Environment"
+Write-Header "STEP 1/7 - Python Virtual Environment"
 
 $VenvDir = Join-Path $RootPath "venv"
 $VenvPy = Join-Path $VenvDir "Scripts\python.exe"
@@ -175,16 +183,20 @@ function Venv-Pip {
 # ============================================================================
 # 2. COMFYUI
 # ============================================================================
-Write-Header "STEP 2/7 — ComfyUI Core"
+Write-Header "STEP 2/7 - ComfyUI Core"
 
 $ComfyUICommit = "0467f69"  # Pinned stable
 $ComfyDir = Join-Path $RootPath "ComfyUI"
 
 if (-not (Test-Path $ComfyDir)) {
     Write-Step "Cloning ComfyUI..."
-    & git clone https://github.com/comfyanonymous/ComfyUI.git "$ComfyDir" 2>&1 | Out-String | Out-Null
+    $ErrorActionPreference = "Continue"
+    $cloneOut = & git clone https://github.com/comfyanonymous/ComfyUI.git "$ComfyDir" 2>&1 | Out-String
+    $ErrorActionPreference = "Stop"
     Set-Location $ComfyDir
-    & git checkout $ComfyUICommit 2>&1 | Out-String | Out-Null
+    $ErrorActionPreference = "Continue"
+    $checkoutOut = & git checkout $ComfyUICommit 2>&1 | Out-String
+    $ErrorActionPreference = "Stop"
     Set-Location $RootPath
     Write-Step "ComfyUI cloned + pinned to $ComfyUICommit" "Green"
 } else {
@@ -194,7 +206,7 @@ if (-not (Test-Path $ComfyDir)) {
 # ============================================================================
 # 3. PYTORCH + CORE DEPS
 # ============================================================================
-Write-Header "STEP 3/7 — PyTorch + Dependencies"
+Write-Header "STEP 3/7 - PyTorch + Dependencies"
 
 Write-Step "Installing PyTorch (CUDA 12.4)... this takes a few minutes"
 Venv-Pip "install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124"
@@ -236,7 +248,7 @@ Venv-Pip "install $($Deps -join ' ')"
 try {
     $GPUName = (Get-CimInstance Win32_VideoController | Where-Object { $_.Name -match "NVIDIA" } | Select-Object -First 1).Name
     if ($GPUName -match "RTX 40\d\d" -or $GPUName -match "RTX 50\d\d") {
-        Write-Step "RTX 40/50 series detected — installing SageAttention..."
+        Write-Step "RTX 40/50 series detected - installing SageAttention..."
         Venv-Pip "install sageattention"
     }
 } catch {}
@@ -246,7 +258,7 @@ Write-Step "All Python dependencies installed." "Green"
 # ============================================================================
 # 4. CUSTOM NODES
 # ============================================================================
-Write-Header "STEP 4/7 — Custom Nodes (from config/nodes.json)"
+Write-Header "STEP 4/7 - Custom Nodes (from config/nodes.json)"
 
 $NodesConfig = Get-Content (Join-Path $RootPath "config\nodes.json") | ConvertFrom-Json
 $CustomNodesDir = Join-Path $ComfyDir "custom_nodes"
@@ -256,7 +268,7 @@ $Installed = 0; $Skipped = 0; $Failed = 0
 
 foreach ($Node in $NodesConfig) {
     if ($Node.local -eq $true) {
-        Write-Step "  [$($Node.name)] Local — skipped" "Gray"
+        Write-Step "  [$($Node.name)] Local - skipped" "Gray"
         continue
     }
 
@@ -285,12 +297,14 @@ foreach ($Node in $NodesConfig) {
     }
 }
 
-Write-Step "Nodes: $Installed installed, $Skipped already present, $Failed failed" $(if ($Failed -gt 0) { "Yellow" } else { "Green" })
+$NodeColor = "Green"
+if ($Failed -gt 0) { $NodeColor = "Yellow" }
+Write-Step "Nodes: $Installed installed, $Skipped already present, $Failed failed" $NodeColor
 
 # ============================================================================
 # 5. FRONTEND
 # ============================================================================
-Write-Header "STEP 5/7 — Frontend (React + Vite)"
+Write-Header "STEP 5/7 - Frontend (React + Vite)"
 
 $FrontendDir = Join-Path $RootPath "frontend"
 if (Test-Path $FrontendDir) {
@@ -310,7 +324,7 @@ if (Test-Path $FrontendDir) {
 # ============================================================================
 # 6. ASSETS + CONFIG
 # ============================================================================
-Write-Header "STEP 6/7 — Assets & Configuration"
+Write-Header "STEP 6/7 - Assets & Configuration"
 
 # styles.csv
 $StylesSrc = Join-Path $RootPath "assets\styles.csv"
@@ -364,7 +378,7 @@ Write-Step "ComfyUI-Manager configured (weak security)." "Green"
 # ============================================================================
 # 7. SMOKE TEST
 # ============================================================================
-Write-Header "STEP 7/7 — Verification"
+Write-Header "STEP 7/7 - Verification"
 
 $SmokeCode = @"
 import sys
@@ -372,7 +386,7 @@ ok = True
 try:
     import torch
     gpu = torch.cuda.is_available()
-    print(f'  PyTorch {torch.__version__} — CUDA: {gpu}')
+    print(f'  PyTorch {torch.__version__} - CUDA: {gpu}')
     if gpu: print(f'  GPU: {torch.cuda.get_device_name(0)}')
     else: ok = False; print('  WARNING: CUDA not available!')
 except Exception as e:
@@ -395,19 +409,19 @@ Remove-Item $SmokeFile -Force
 if ($SmokeResult.ExitCode -eq 0) {
     Write-Step "All core imports verified!" "Green"
 } else {
-    Write-Step "Some imports failed — check output above." "Yellow"
+    Write-Step "Some imports failed - check output above." "Yellow"
 }
 
 # Done
 $StopWatch.Stop()
 $Elapsed = $StopWatch.Elapsed
+$TimeStr = "{0:mm}m {0:ss}s" -f $Elapsed
 Write-Host ""
-Write-Host "  ╔══════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "  ║                                                  ║" -ForegroundColor Green
-Write-Host "  ║       INSTALLATION COMPLETE!                     ║" -ForegroundColor Green
-Write-Host "  ║                                                  ║" -ForegroundColor Green
-Write-Host "  ║       Time: $("{0:mm}m {0:ss}s" -f $Elapsed)                             ║" -ForegroundColor Green
-Write-Host "  ║       Run: run-fast.bat                          ║" -ForegroundColor Green
-Write-Host "  ║                                                  ║" -ForegroundColor Green
-Write-Host "  ╚══════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "  ========================================================" -ForegroundColor Green
+Write-Host "                                                          " -ForegroundColor Green
+Write-Host "         INSTALLATION COMPLETE!                           " -ForegroundColor Green
+Write-Host "         Time: $TimeStr                                   " -ForegroundColor Green
+Write-Host "         Run: run-fast.bat                                " -ForegroundColor Green
+Write-Host "                                                          " -ForegroundColor Green
+Write-Host "  ========================================================" -ForegroundColor Green
 Write-Host ""
